@@ -14,25 +14,24 @@
  * limitations under the License.
  */
 
-#ifndef __COMMON_H__
-#define __COMMON_H__
+#ifndef __PERIODIC_H__
+#define __PERIODIC_H__
 
-#include <stdio.h>
+/**
+ * Initialize absolute activation time and deadline
+ */
+void set_period(struct timespec *at, struct timespec *dl,
+        int period, int deadline);
 
-enum loglevel {LOG_ERROR=-1, LOG_WARNING=0, LOG_INFO=1, LOG_DEBUG=2};
+/**
+ * Put the thread to sleep until next activation time, then shift both
+ * activation time and deadline by one period.
+ */
+void wait_for_period(struct timespec *at, struct timespec *dl, int period);
 
-typedef enum {false, true} bool;
-
-void printf_log(enum loglevel level, const char *fmt, ...);
-
-struct options {
-  bool          help;           /* the --help flag */
-  enum loglevel verbosity;
-  FILE*         logfile;
-  char*         infile_name;
-  FILE*         infile;
-};
-
-extern struct options options;
+/**
+ * Whether the given deadline has been missed
+ */
+int deadline_miss(const struct timespec *dl);
 
 #endif

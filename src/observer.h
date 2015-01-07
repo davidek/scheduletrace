@@ -14,25 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef __COMMON_H__
-#define __COMMON_H__
+#define OBSERVER_SCHED_POLICY SCHED_RR
 
-#include <stdio.h>
+#define OBSERVER_PRIORITY 90
 
-enum loglevel {LOG_ERROR=-1, LOG_WARNING=0, LOG_INFO=1, LOG_DEBUG=2};
-
-typedef enum {false, true} bool;
-
-void printf_log(enum loglevel level, const char *fmt, ...);
-
-struct options {
-  bool          help;           /* the --help flag */
-  enum loglevel verbosity;
-  FILE*         logfile;
-  char*         infile_name;
-  FILE*         infile;
-};
-
-extern struct options options;
-
-#endif
+void observer_start();
