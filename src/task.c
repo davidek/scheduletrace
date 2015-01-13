@@ -19,6 +19,8 @@
 #include <errno.h>
 #include <assert.h>
 #include <pthread.h>
+#include <stdio.h>
+#include <string.h>
 
 #include "task.h"
 #include "common.h"
@@ -26,15 +28,18 @@
 
 /* The task body, which shall be executed at every activation of the task */
 void task_body(struct task_params* task) {
-  int i;
+  int s;        /* section index */
+  unsigned long i;      /* operation counter */
 
   printf_log(LOG_INFO, "Hey! period=%ld\n", task->period);
-  /*for (i=0; i<1000000; i++) {
-    task->count ++;
-    if (i % 100000 == 0) {
+  for (s = 0; s < task->sections_count; s++) {
+    for (i = 0; i < task->sections[s].avg; i++) {
+      task->count ++;
+      if (i % 100000 == 0) {
         printf_log(LOG_DEBUG, "%d\n", i/100000);
+      }
     }
-  }*/
+  }
 }
 
 
@@ -73,8 +78,10 @@ void task_params_init(struct task_params* task) {
   task->priority = DEFAULT_TASK_PRIORITY;
 
   task->created = false;
+  strncpy(task->name, "NEW", MAX_TASK_NAME_LEN + 1);
   task->quit = false;
   task->done = false;
+  task->dmiss_count = 0;
   task->count = 0;
 }
 
@@ -118,12 +125,40 @@ int task_params_init_str(struct task_params *task, const char *initstr) {
 }
 
 
+void task_str(char *str,int len, const struct task_params *task, int verbosity){
+  int n,        /* number of chars consumed by subsequent calls to sprintf */
+      i;        /* loop index for iterating task sections */
+
+  n = snprintf(str, len,
+      "Task <%s>:\n  T=%u ms, D=%u ms, prio=%u;",
+      task->name, task->period, task->deadline, task->priority);
+  len -= n; str += n; assert(len > 0);
+
+  if (verbosity >= 1) {
+    n = snprintf(str, len,
+        "\n  created=%d, quit=%d, done=%d, dmiss=%d, count=%lu, %u section[s];",
+        task->created, task->quit, task->done, task->dmiss_count, task->count,
+        task->sections_count);
+    len -= n; str += n; assert(len > 0);
+  }
+
+  if (verbosity >= 2) {
+    for (i = 0; i < task->sections_count; i++) {
+      n = snprintf(str, len,
+          "\n  (R%u,avg=%lu,dev=%lu)",
+          task->sections[i].res, task->sections[i].avg, task->sections[i].dev);
+      len -= n; str += n; assert(len > 0);
+    }
+  }
+}
+
+
 /* handle errors that may happen in task_start */
 #define handle_error_en(en, fname, tname) \
   do { \
-    errno = en; \
     printf_log(LOG_WARNING, \
         "Couldn't start `%s`: Got an error while calling function ", tname); \
+    errno = en; \
     perror(fname); \
     return; \
   } while (0)

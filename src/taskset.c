@@ -19,17 +19,21 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#include "common.h"
 #include "task.h"
 #include "taskset.h"
 
-
-struct task_params *lonely_task;
+void taskset_init(struct taskset* ts) {
+  ts->tasks_count = 0;
+}
 
 int taskset_init_file(struct taskset* ts) {
   int s;                /* stores return status of functions */
   char *line = NULL;    /* pointer to the line buffer */
   size_t len = 0;       /* size of alloccated line buffer */
   ssize_t read;         /* number of read characters */
+
+  taskset_init(ts);
 
   while ((read = getline(&line, &len, options.infile)) != -1
       && ts->tasks_count < MAX_TASKSET_SIZE)
@@ -43,6 +47,7 @@ int taskset_init_file(struct taskset* ts) {
           "Task parsing was unsuccessful, skipping task definition.\n");
     }
     else {
+      observer_ctx_init(&ts->observer_ctxs[ts->tasks_count]);
       ts->tasks_count ++;
     }
   }
@@ -69,3 +74,21 @@ int taskset_start(struct taskset* ts) {
   return 0;
 }
 
+void taskset_print(const struct taskset* ts) {
+  int i;
+  char str[10000];
+
+  printf_log(LOG_INFO, "Taskset made of %d tasks.\n", ts->tasks_count);
+  for (i = 0; i < ts->tasks_count; i++) {
+    task_str(str, 10000, &ts->tasks[i], 1);
+    printf_log(LOG_INFO, "%s\n", str);
+  }
+}
+
+void taskset_quit(struct taskset *ts) {
+  int i;
+
+  for (i = 0; i < ts->tasks_count; i++) {
+    ts->tasks[i].quit = true;
+  }
+}

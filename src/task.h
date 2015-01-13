@@ -105,4 +105,11 @@ int task_params_init_str(struct task_params *task, const char *initstr);
  */
 void task_start(struct task_params *task);
 
+/**
+ * Write a string representation of the task into *str.
+ * 
+ * `verbosity` controls the level of details: 1, 2, 3
+ */
+void task_str(char *str, int len, const struct task_params *task, int verbosity);
+
 #endif

@@ -117,7 +117,6 @@ void graphics_init() {
 
 
 int main(int argc, char **argv) {
-  struct task_params params;  /* temporary */
   struct taskset ts;
 
   options_init(argc, argv);
@@ -131,19 +130,26 @@ int main(int argc, char **argv) {
 
   graphics_init();
 
-  task_params_init(&params);
+  /*task_params_init(&params);
   params.period = 100;
-  lonely_task = &params;
-
-  observer_start();
-
-  task_start(&params);
+  lonely_task = &params;*/
 
   taskset_init_file(&ts);
+  taskset_print(&ts);
+  
+  printf_log(LOG_INFO, "Taskset successfully initialized!\n");
+
+  observer_start(&ts);
+
+  /*task_start(&params);*/
+
   taskset_start(&ts);
   
   sleep(1);
+  printf_log(LOG_INFO, "Quitting tasks...\n");
+  taskset_quit(&ts);
+  sleep(1);
 
   printf_log(LOG_INFO, "Exiting scheduletrace.\n");
-  return 0;
+  exit(0);
 }

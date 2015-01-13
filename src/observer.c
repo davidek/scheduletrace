@@ -26,36 +26,56 @@
 #include "common.h"
 
 
-void observer_loop() {
+void observer_ctx_init(struct observer_ctx *ctx) {
+  ctx->last_counter = 0;
+}
+
+void observer_body(struct taskset *ts) {
+  int i;
+  struct task_params *task;
+  struct observer_ctx *ctx;
+  unsigned long diff;
+
+  for (i = 0; i < ts->tasks_count; i++) {
+    task = &ts->tasks[i];
+    ctx = &ts->observer_ctxs[i];
+
+    if (! task->created) {
+      /*
+      printf_log(LOG_DEBUG, "waiting for '%s' to be created...\n", task->name);
+      */
+    }
+    else if (task->done) {
+      printf_log(LOG_DEBUG, "'%s' has finished already!\n", task->name);
+    }
+    else {
+      diff = task->count - ctx->last_counter;
+      if (diff)
+        printf_log(LOG_DEBUG, "Counter for %s is %lu (+%lu)\n",
+            task->name, task->count, diff);
+      ctx->last_counter = task->count;
+    }
+  }
+}
+
+void observer_loop(struct taskset *ts) {
   struct timespec t;
-  unsigned long last_counter = 0;
 
   pthread_setname_np(pthread_self(), "obs");
   printf_log(LOG_INFO, "Hello\n");
 
-  t.tv_nsec = 10;
+  t.tv_nsec = 100;
   t.tv_sec = 0;
 
   while (true) {
-    if (! lonely_task->created) {
-      printf_log(LOG_DEBUG, "waiting for task to be created...\n");
-    }
-    else if (lonely_task->done) {
-      printf_log(LOG_DEBUG, "Task has finished already!\n");
-    }
-    else {
-      printf_log(LOG_DEBUG, "Counter for %s is %lu (+%lu)\n",
-          lonely_task->name, lonely_task->count,
-          lonely_task->count - last_counter);
-      last_counter = lonely_task->count;
-    }
+    observer_body(ts);
 
     clock_nanosleep(CLOCK_MONOTONIC, 0x0, &t, NULL);
   }
 }
 
 void *observer_function(void* param) {
-  observer_loop();
+  observer_loop((struct taskset*) param);
   return NULL;
 }
 
@@ -78,8 +98,8 @@ static inline const char *get_sched_policy_string(int policy) {
   }
 }
 
-void observer_start() {
-  pthread_t tid;                         /* thread object */
+void observer_start(struct taskset *ts) {
+  pthread_t tid;                        /* thread object */
   pthread_attr_t tattr;                 /* thread attributes */
   struct sched_param sched_param;       /* scheduling parameters */
   int policy;                   /* scheduling policy */
@@ -108,7 +128,7 @@ void observer_start() {
   s = pthread_attr_setschedparam(&tattr, &sched_param);
   if (s) handle_error_en_clean(s, "pthread_attr_setschedparam");
   
-  s = pthread_create(&tid, &tattr, observer_function, NULL);
+  s = pthread_create(&tid, &tattr, observer_function, ts);
   if (s) handle_error_en_clean(s, "pthread_create");
 
   pthread_attr_destroy(&tattr);

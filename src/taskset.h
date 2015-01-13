@@ -20,19 +20,28 @@
 #include "task.h"
 #include "common.h"
 
+struct taskset;  /* needed by observer.h */
+
+#include "observer.h"
+
 #ifndef MAX_TASKSET_SIZE
 #define MAX_TASKSET_SIZE 10
 #endif
 
-extern struct task_params *lonely_task;
-
 struct taskset {
   struct task_params tasks[MAX_TASKSET_SIZE];
+  struct observer_ctx observer_ctxs[MAX_TASKSET_SIZE];
   int tasks_count;
 };
+
+void taskset_init(struct taskset* ts);
 
 int taskset_init_file(struct taskset* ts);
 
 int taskset_start(struct taskset* ts);
+
+void taskset_print(const struct taskset* ts);
+
+void taskset_quit(struct taskset *ts);
 
 #endif

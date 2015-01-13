@@ -14,8 +14,26 @@
  * limitations under the License.
  */
 
+#ifndef __OBSERVER_H__
+#define __OBSERVER_H__
+
 #define OBSERVER_SCHED_POLICY SCHED_RR
 
 #define OBSERVER_PRIORITY 90
 
-void observer_start();
+/**
+ * A data structure for storing a per-task persistent observer context
+ *
+ * No other thread but the observer shall ever edit one of these.
+ */
+struct observer_ctx {
+  unsigned long last_counter;
+};
+
+#include "taskset.h"  /* deferred to prevent circular import problems */
+
+void observer_ctx_init(struct observer_ctx *ctx);
+
+void observer_start(struct taskset *ts);
+
+#endif
