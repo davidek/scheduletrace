@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-#define _GNU_SOURCE
-
 #include <assert.h>
 #include <errno.h>
 #include <pthread.h>
@@ -89,7 +87,7 @@ void *observer_function(void* param) {
 #define handle_error_en_clean(en, fname) \
   do { pthread_attr_destroy(&tattr); handle_error_en(en, fname); } while (0)
 
-static inline const char *get_sched_policy_string(int policy) {
+static const char *get_sched_policy_string(int policy) {
   switch (policy) {
     case SCHED_OTHER:           return "SCHED_OTHER";
     case SCHED_FIFO:            return "SCHED_FIFO";

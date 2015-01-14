@@ -17,8 +17,6 @@
 #ifndef __TASK_H__
 #define __TASK_H__
 
-#define _GNU_SOURCE
-
 #include <time.h>
 #include <sched.h>
 #include <pthread.h>

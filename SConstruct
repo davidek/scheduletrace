@@ -4,7 +4,7 @@ DEBUG = True
 src_files = Glob('src/**.c')
 
 env = Environment()
-#env.Append(CCFLAGS=['-ansi'])  # currently not compatible
+env.Append(CCFLAGS=['-ansi', '-D_GNU_SOURCE'])
 env.Append(CCFLAGS=['-Wall', '-Wpedantic'])
 env.Append(CCFLAGS=['-pthread'], LINKFLAGS=['-pthread'])
 env.Append(LIBS=['rt'])
@@ -14,6 +14,9 @@ if DEBUG:
     env.Append(CCFLAGS=['-g'])
 else:
     env.Append(CCFLAGS=['-DNDEBUG', '-O3'])
+
+#from pprint import pprint as pp
+#pp(env.__dict__)
 
 env.Program('scheduletrace', src_files)
 

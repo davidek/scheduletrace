@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-#define _GNU_SOURCE
-
 #include <errno.h>
 #include <assert.h>
 #include <pthread.h>
@@ -168,7 +166,7 @@ void task_str(char *str,int len, const struct task_params *task, int verbosity){
   } while (0)
 
 
-static inline const char *get_sched_policy_string(int policy) {
+static const char *get_sched_policy_string(int policy) {
   switch (policy) {
     case SCHED_OTHER:   return "SCHED_OTHER";
     case SCHED_FIFO:    return "SCHED_FIFO";
