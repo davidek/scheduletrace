@@ -34,16 +34,20 @@ void help(const char* cmd_name) {
 Usage: %s [options]\n\
 Runs some threads and displays their schedule.\n\
 \n\
-  -h, --help            Display this help and exit\n\
+  -h, --help            Display this help and exit.\n\
 \n\
   -v, --verbose         Verbose output. Useful for debugging purposes.\n\
   -q, --quiet           Quiet mode: will only log warnings and fatal errors.\n\
 \n\
   -f, --file=FILE       Read task definition from FILE rather than from stdin.\n\
+      --no-logfile-sync\n\
+                        Disable synchronization of logging statements \n\
+                        (otherways enabled by default).\n\
+                        When disabled, the output may turn into a mess.\n\
 \n\
       --with-global-lock\n\
                         Enable a global lock for every operation by observed\n\
-                        threads and by the observer (default disabled)\n\
+                        and observer threads (default disabled).\n\
 ", cmd_name);
 }
 
@@ -53,7 +57,8 @@ void see_help(const char* cmd_name) {
   fprintf(stderr,"Try '%s --help' for more information.\n", cmd_name);
 }
 
-#define WITH_GLOBAL_LOCK 256
+#define WITH_GLOBAL_LOCK        256
+#define NO_LOGFILE_SYNC         257
 
 /* Populate options struct, parsing the command line arguments. */
 void options_init(int argc, char **argv) {
@@ -65,6 +70,7 @@ void options_init(int argc, char **argv) {
     {"quiet", no_argument, NULL, 'q' },
     {"file", required_argument, NULL, 'f'},
     {"with-global-lock", no_argument, NULL, WITH_GLOBAL_LOCK},
+    {"no-logfile-sync", no_argument, NULL, NO_LOGFILE_SYNC},
     {NULL, 0, NULL, 0}
   };
 
@@ -72,6 +78,7 @@ void options_init(int argc, char **argv) {
   options.help = false;
   options.verbosity = LOG_INFO;
   options.logfile = stderr;
+  options.logfile_sync = true;
   options.infile_name = "-";
   options.infile = stdin;
   options.with_global_lock = false;
@@ -99,6 +106,9 @@ void options_init(int argc, char **argv) {
       case WITH_GLOBAL_LOCK:
         options.with_global_lock = true;
         break;
+      case NO_LOGFILE_SYNC:
+        options.logfile_sync = false;
+        break;
       case '?':
         /* getopt_long already printed an error message. */
         see_help(argv[0]);
@@ -109,13 +119,18 @@ void options_init(int argc, char **argv) {
     }
   }
 
-  s = sem_init(&options.logfile_sem, 0, 1);
-  if (s < 0) {
-    perror("Error initializing logging semaphore");
-    exit(1);
+  if (options.logfile_sync) {
+    s = sem_init(&options.logfile_sem, 0, 1);
+    if (s < 0) {
+      perror("Error initializing logging semaphore");
+      exit(1);
+    }
   }
-
   /* From this point on, printf_log can be used */
+  if (! options.logfile_sync) {
+    printf_log(LOG_INFO, "Console output synchronizatio disabled: output could"
+        " become messy.\n");
+  }
 
   if (options.with_global_lock) {
      printf_log(LOG_INFO, "Using global lock, who knows what will happen...\n");

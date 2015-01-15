@@ -41,9 +41,9 @@ typedef enum {false, true} bool;
 #define printf_log(level, ...) \
   do { \
     if (level <= options.verbosity) { \
-      assert(0 == sem_wait(&options.logfile_sem)); \
+      if (options.logfile_sync) assert(0 == sem_wait(&options.logfile_sem)); \
       printf_log_nosync(level, 0, __VA_ARGS__); \
-      assert(0 == sem_post(&options.logfile_sem)); \
+      if (options.logfile_sync) assert(0 == sem_post(&options.logfile_sem)); \
     } \
   } while (0)
 
@@ -55,9 +55,9 @@ typedef enum {false, true} bool;
   do { \
     int errno_cache = e;  /* emulate call by value, so one can pass `errno` */ \
     if (level <= options.verbosity) { \
-      assert(0 == sem_wait(&options.logfile_sem)); \
+      if (options.logfile_sync) assert(0 == sem_wait(&options.logfile_sem)); \
       printf_log_nosync(level, errno_cache, __VA_ARGS__); \
-      assert(0 == sem_post(&options.logfile_sem)); \
+      if (options.logfile_sync) assert(0 == sem_post(&options.logfile_sem)); \
     } \
   } while (0)
 
@@ -69,6 +69,7 @@ struct options {
   bool          help;           /* the --help flag */
   enum loglevel verbosity;
   FILE*         logfile;
+  bool          logfile_sync;   /* Whether to use atomic writes to logfile */
   sem_t         logfile_sem;    /* To implement atomic writes to logfile */
   char*         infile_name;
   FILE*         infile;
