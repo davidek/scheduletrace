@@ -19,8 +19,10 @@
 #include <pthread.h>
 #include <stdio.h>
 #include <string.h>
+#include <semaphore.h>
 
 #include "task.h"
+#include "periodic.h"
 #include "common.h"
 
 
@@ -43,18 +45,30 @@ void task_body(struct task_params* task) {
 
 /* Implememntation of the task */
 void task_loop(struct task_params* task) {
-  struct timespec t;
+  struct timespec at;
+  struct timespec dl;
+  int s;
 
   pthread_setname_np(pthread_self(), task->name);
-  task->created = true;
 
-  assert(task->period < 1000);
-  t.tv_nsec = task->period * 1000000;
-  t.tv_sec = 0;
+  s = sem_wait(&task->activation_sem);
+  if (s < 0) {
+    printf_log_perror(LOG_WARNING, errno,
+        "Task activation failed: sem_wait returned error: ");
+    return;
+  }
+  task->activated = true;
+  printf_log(LOG_INFO, "Activated!\n");
+
+  set_period_ms(&at, &dl, task->period, task->deadline);
 
   while (! task->quit) {
     task_body(task);
-    clock_nanosleep(CLOCK_MONOTONIC, 0x0, &t, NULL);
+
+    wait_for_period_ns(&at, &dl, task->period);
+    if (deadline_miss(&dl)) {
+      task->dmiss ++;
+    }
   }
 
   task->done = true;
@@ -70,16 +84,20 @@ void *task_function(void* task) {
 
 /* documented in header file */
 void task_params_init(struct task_params* task) {
+  static int task_count = 0;    /* enumerate created tasks */
+
+  snprintf(task->name, MAX_TASK_NAME_LEN + 1, "task%d", task_count);
+  task_count ++;
+
   task->sections_count = 0;
   task->period = DEFAULT_TASK_PERIOD;
   task->deadline = DEFAULT_TASK_DEADLINE;
   task->priority = DEFAULT_TASK_PRIORITY;
 
-  task->created = false;
-  strncpy(task->name, "NEW", MAX_TASK_NAME_LEN + 1);
+  task->activated = false;
   task->quit = false;
   task->done = false;
-  task->dmiss_count = 0;
+  task->dmiss = 0;
   task->count = 0;
 }
 
@@ -134,8 +152,8 @@ void task_str(char *str,int len, const struct task_params *task, int verbosity){
 
   if (verbosity >= 1) {
     n = snprintf(str, len,
-        "\n  created=%d, quit=%d, done=%d, dmiss=%d, count=%lu, %u section[s];",
-        task->created, task->quit, task->done, task->dmiss_count, task->count,
+        "\n  active=%d, quit=%d, done=%d, dmiss=%d, count=%lu, %u section[s];",
+        task->activated, task->quit, task->done, task->dmiss, task->count,
         task->sections_count);
     len -= n; str += n; assert(len > 0);
   }
@@ -151,13 +169,12 @@ void task_str(char *str,int len, const struct task_params *task, int verbosity){
 }
 
 
-/* handle errors that may happen in task_start */
+/* handle errors that may happen in task_create */
 #define handle_error_en(en, fname, tname) \
   do { \
-    printf_log(LOG_WARNING, \
-        "Couldn't start `%s`: Got an error while calling function ", tname); \
-    errno = en; \
-    perror(fname); \
+    printf_log_perror(LOG_WARNING, en, \
+        "Couldn't start `%s`: Got an error while calling function %s: ", \
+        tname, fname); \
     return; \
   } while (0)
 
@@ -177,17 +194,15 @@ static const char *get_sched_policy_string(int policy) {
 
 
 /* documented in header file */
-void task_start(struct task_params *task) {
+void task_create(struct task_params *task) {
   pthread_attr_t tattr;                 /* thread attributes */
   struct sched_param sched_param;       /* scheduling parameters */
-  static int task_count = 0;    /* enumerate created tasks */
   int policy;                   /* scheduling policy */
   int s;                        /* return value of called library functions */
 
-  sprintf(task->name, "task%d", task_count);
-  task_count ++;
-
   printf_log(LOG_DEBUG, "Starting creation of %s\n", task->name);
+
+  sem_init(&task->activation_sem, 0, 0);
 
   s = pthread_attr_init(&tattr);
   if (s) handle_error_en(s, "pthread_attr_init", task->name);
@@ -217,3 +232,8 @@ void task_start(struct task_params *task) {
   pthread_attr_destroy(&tattr);
 }
 #undef handle_error_en
+
+
+void task_activate(struct task_params *task) {
+  sem_post(&task->activation_sem);
+}

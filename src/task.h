@@ -20,6 +20,7 @@
 #include <time.h>
 #include <sched.h>
 #include <pthread.h>
+#include <semaphore.h>
 
 #include "common.h"
 
@@ -63,22 +64,23 @@ struct task_section {
  * Parameters required to start and run a periodic task
  */
 struct task_params {
-  /* To be set before starting the thread */
+  /* To be set by the user before starting the thread */
   struct task_section sections[MAX_TASK_SECTIONS];  /* sequence of sections */
   int sections_count;           /* length of `sections` */
   unsigned int period;          /* in milliseconds */
   unsigned int deadline;        /* relative, in milliseconds */
   unsigned int priority;        /* in [0,99], allowed values depend on policy */
 
-  /* Set at creation time */
-  bool created;         /* whether a thread was created for this task */
-  pthread_t tid;        /* the thread id */
+  /* Automatically set at creation/initialization time */
   char name[MAX_TASK_NAME_LEN + 1];     /* the thread name */  
+  sem_t activation_sem; /* newly-created tasks will wait here for activation */
+  bool activated;       /* becomes true after activation */
+  pthread_t tid;        /* the thread id */
 
   /* Updated and used during execution */
   bool quit;            /* when true, instructs the task to stop gracefully */
   bool done;            /* becomes true after the task has stopped gracefully */
-  int dmiss_count;      /* number of deadline misses */
+  int dmiss;            /* number of deadline misses */
   struct timespec at;   /* next activation time */
   struct timespec dl;   /* next absolute deadline */
   unsigned long count;  /* counts performed operations */
@@ -97,11 +99,16 @@ void task_params_init(struct task_params *task);
 int task_params_init_str(struct task_params *task, const char *initstr);
 
 /**
- * Start the task described by the given structure.
+ * Create the thread for the task described by the given structure.
  * The scheduling policy to be used can be configured at compile time
  * by setting TASK_SCHED_POLICY, which defaults to SCHED_RR
  */
-void task_start(struct task_params *task);
+void task_create(struct task_params *task);
+
+/**
+ * Activate the task
+ */
+void task_activate(struct task_params *task);
 
 /**
  * Write a string representation of the task into *str.

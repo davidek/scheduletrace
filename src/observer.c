@@ -21,6 +21,7 @@
 #include "observer.h"
 #include "task.h"
 #include "taskset.h"
+#include "periodic.h"
 #include "common.h"
 
 
@@ -28,47 +29,60 @@ void observer_ctx_init(struct observer_ctx *ctx) {
   ctx->last_counter = 0;
 }
 
-void observer_body(struct taskset *ts) {
+void observer_body(struct taskset *ts,
+    unsigned long *obs_it, unsigned long *dmiss) {
   int i;
   struct task_params *task;
   struct observer_ctx *ctx;
   unsigned long diff;
 
+  (*obs_it) ++;
+
   for (i = 0; i < ts->tasks_count; i++) {
     task = &ts->tasks[i];
     ctx = &ts->observer_ctxs[i];
 
-    if (! task->created) {
-      /*
-      printf_log(LOG_DEBUG, "waiting for '%s' to be created...\n", task->name);
-      */
+    if (! task->activated) {
+      /* printf_log(LOG_DEBUG, "'%s' not active yet.\n", task->name); */
     }
     else if (task->done) {
-      printf_log(LOG_DEBUG, "'%s' has finished already!\n", task->name);
+      printf_log(LOG_DEBUG, "[%lu-dmiss%lu] '%s' has finished already!\n",
+          *obs_it, *dmiss, task->name);
     }
     else {
       diff = task->count - ctx->last_counter;
       if (diff)
-        printf_log(LOG_DEBUG, "Counter for %s is %lu (+%lu)\n",
-            task->name, task->count, diff);
+        printf_log(LOG_DEBUG, "[%lu-dmiss%lu] Counter for %s is %lu (+%lu)\n",
+            *obs_it, *dmiss, task->name, task->count, diff);
       ctx->last_counter = task->count;
     }
   }
 }
 
 void observer_loop(struct taskset *ts) {
-  struct timespec t;
+  unsigned long obs_iterations; /* number of iterations */
+  unsigned long dmiss;          /* number of deadline misses */
+  struct timespec at;           /* activation time */
+  struct timespec dl;           /* deadline */
+  /*struct timespec t;*/
 
   pthread_setname_np(pthread_self(), "obs");
   printf_log(LOG_INFO, "Hello\n");
 
-  t.tv_nsec = 100;
-  t.tv_sec = 0;
+  /*t.tv_nsec = 1;
+  t.tv_sec = 0;*/
+  obs_iterations = 0;
+  dmiss = 0;
+  set_period_ns(&at, &dl, OBSERVER_DEFAULT_PERIOD_ns, OBSERVER_DEFAULT_PERIOD_ns);
 
   while (true) {
-    observer_body(ts);
+    observer_body(ts, &obs_iterations, &dmiss);
 
-    clock_nanosleep(CLOCK_MONOTONIC, 0x0, &t, NULL);
+    /*clock_nanosleep(CLOCK_MONOTONIC, 0x0, &t, NULL);*/
+    wait_for_period_ns(&at, &dl, OBSERVER_DEFAULT_PERIOD_ns);
+    if (deadline_miss(&dl)) {
+      dmiss ++;
+    }
   }
 }
 
@@ -80,8 +94,9 @@ void *observer_function(void* param) {
 /* handle errors that may happen in observer_start */
 #define handle_error_en(en, fname) \
   do { \
-    errno = en; printf_log(LOG_WARNING, "Error while calling function "); \
-    perror(fname); return; \
+    printf_log_perror(LOG_WARNING, en, \
+        "Error while calling function %s: ", fname); \
+    return; \
   } while (0)
 
 #define handle_error_en_clean(en, fname) \

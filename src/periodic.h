@@ -20,14 +20,19 @@
 /**
  * Initialize absolute activation time and deadline
  */
-void set_period(struct timespec *at, struct timespec *dl,
-        int period, int deadline);
+void set_period_ms(struct timespec *at, struct timespec *dl,
+        long period, long deadline);
+
+void set_period_ns(struct timespec *at, struct timespec *dl,
+        long period, long deadline);
 
 /**
  * Put the thread to sleep until next activation time, then shift both
  * activation time and deadline by one period.
  */
-void wait_for_period(struct timespec *at, struct timespec *dl, int period);
+void wait_for_period_ms(struct timespec *at, struct timespec *dl, long period);
+
+void wait_for_period_ns(struct timespec *at, struct timespec *dl, long period);
 
 /**
  * Whether the given deadline has been missed

@@ -62,14 +62,22 @@ int taskset_init_file(struct taskset* ts) {
   return 0;
 }
 
-int taskset_start(struct taskset* ts) {
+int taskset_create(struct taskset* ts) {
   int i;
 
   for (i = 0; i < ts->tasks_count; i++) {
-    task_start(&ts->tasks[i]);
+    task_create(&ts->tasks[i]);
   }
 
   return 0;
+}
+
+void taskset_activate(struct taskset* ts) {
+  int i;
+
+  for (i = 0; i < ts->tasks_count; i++) {
+    task_activate(&ts->tasks[i]);
+  }
 }
 
 void taskset_print(const struct taskset* ts) {
@@ -78,7 +86,7 @@ void taskset_print(const struct taskset* ts) {
 
   printf_log(LOG_INFO, "Taskset made of %d tasks.\n", ts->tasks_count);
   for (i = 0; i < ts->tasks_count; i++) {
-    task_str(str, 10000, &ts->tasks[i], 1);
+    task_str(str, 10000, &ts->tasks[i], 2);
     printf_log(LOG_INFO, "%s\n", str);
   }
 }

@@ -4,7 +4,7 @@ DEBUG = True
 src_files = Glob('src/**.c')
 
 env = Environment()
-env.Append(CCFLAGS=['-ansi', '-D_GNU_SOURCE'])
+env.Append(CCFLAGS=['-std=c99', '-D_GNU_SOURCE'])
 env.Append(CCFLAGS=['-Wall', '-Wpedantic'])
 env.Append(CCFLAGS=['-pthread'], LINKFLAGS=['-pthread'])
 env.Append(LIBS=['rt'])

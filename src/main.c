@@ -18,6 +18,7 @@
 #include <unistd.h>
 #include <getopt.h>
 #include <assert.h>
+#include <semaphore.h>
 
 #include <allegro.h>
 
@@ -33,12 +34,16 @@ void help(const char* cmd_name) {
 Usage: %s [options]\n\
 Runs some threads and displays their schedule.\n\
 \n\
-  -h, --help          Display this help and exit\n\
+  -h, --help            Display this help and exit\n\
 \n\
-  -v, --verbose       Verbose output. Useful for debugging purposes.\n\
-  -q, --quiet         Quiet mode: will only log warnings and fatal errors.\n\
+  -v, --verbose         Verbose output. Useful for debugging purposes.\n\
+  -q, --quiet           Quiet mode: will only log warnings and fatal errors.\n\
 \n\
-  -f, --file=FILE     Read task definition from FILE rather than from stdin.\n\
+  -f, --file=FILE       Read task definition from FILE rather than from stdin.\n\
+\n\
+      --with-global-lock\n\
+                        Enable a global lock for every operation by observed\n\
+                        threads and by the observer (default disabled)\n\
 ", cmd_name);
 }
 
@@ -48,15 +53,18 @@ void see_help(const char* cmd_name) {
   fprintf(stderr,"Try '%s --help' for more information.\n", cmd_name);
 }
 
+#define WITH_GLOBAL_LOCK 256
 
 /* Populate options struct, parsing the command line arguments. */
 void options_init(int argc, char **argv) {
-  int c;  /* the parsed option in the parsing loop */
+  int s;        /* return value of library functions */
+  int c;        /* the parsed option in the parsing loop */
   struct option long_options[] = {
     {"help", no_argument, NULL, 'h'},
     {"verbose", no_argument, NULL, 'v' },
     {"quiet", no_argument, NULL, 'q' },
     {"file", required_argument, NULL, 'f'},
+    {"with-global-lock", no_argument, NULL, WITH_GLOBAL_LOCK},
     {NULL, 0, NULL, 0}
   };
 
@@ -66,6 +74,7 @@ void options_init(int argc, char **argv) {
   options.logfile = stderr;
   options.infile_name = "-";
   options.infile = stdin;
+  options.with_global_lock = false;
 
   /* Parse command line */
   while (true) {
@@ -87,6 +96,9 @@ void options_init(int argc, char **argv) {
         assert(optarg != NULL);
         options.infile_name = optarg;
         break;
+      case WITH_GLOBAL_LOCK:
+        options.with_global_lock = true;
+        break;
       case '?':
         /* getopt_long already printed an error message. */
         see_help(argv[0]);
@@ -97,10 +109,28 @@ void options_init(int argc, char **argv) {
     }
   }
 
+  s = sem_init(&options.logfile_sem, 0, 1);
+  if (s < 0) {
+    perror("Error initializing logging semaphore");
+    exit(1);
+  }
+
+  /* From this point on, printf_log can be used */
+
+  if (options.with_global_lock) {
+     printf_log(LOG_INFO, "Using global lock, who knows what will happen...\n");
+     s = sem_init(&options.global_lock, 0, 1);
+     if (s < 0) {
+       printf_log_perror(LOG_ERROR, errno,
+           "Error calling sem_init for global_lock: ");
+       exit(1);
+     }
+  }
+
   if (strcmp(options.infile_name, "-") != 0) {
     options.infile = fopen(options.infile_name, "r");
     if (options.infile == NULL) {
-      printf_log(LOG_ERROR, "Error while opening file \"%s\".\n",
+      printf_log_perror(LOG_ERROR, errno, "Error while opening file \"%s\": ",
           options.infile_name);
       exit(1);
     }
@@ -130,23 +160,18 @@ int main(int argc, char **argv) {
 
   graphics_init();
 
-  /*task_params_init(&params);
-  params.period = 100;
-  lonely_task = &params;*/
-
   taskset_init_file(&ts);
   taskset_print(&ts);
+  taskset_create(&ts);
   
   printf_log(LOG_INFO, "Taskset successfully initialized!\n");
 
   observer_start(&ts);
-
-  /*task_start(&params);*/
-
-  taskset_start(&ts);
+sleep(1);
+  taskset_activate(&ts);
   
   sleep(1);
-  printf_log(LOG_INFO, "Quitting tasks...\n");
+  printf_log(LOG_INFO, "Quitting tasks!\n");
   taskset_quit(&ts);
   sleep(1);
 

@@ -14,23 +14,66 @@
  * limitations under the License.
  */
 
+/**
+ * This module aims at simplifying error handling and logging troughout the
+ * project.
+ * It also provides a global `options` struct for run-time parameters and other
+ * useful stuff.
+ */
+
 #ifndef __COMMON_H__
 #define __COMMON_H__
 
 #include <stdio.h>
+#include <semaphore.h>
+#include <assert.h>
+#include <errno.h>
 
 enum loglevel {LOG_ERROR=-1, LOG_WARNING=0, LOG_INFO=1, LOG_DEBUG=2};
 
 typedef enum {false, true} bool;
 
-void printf_log(enum loglevel level, const char *fmt, ...);
+
+/**
+ * A synchronized printf-like macro with an extra `loglevel` argument 
+ * printf_log(enum loglevel level, const char *fmt, ...) 
+ */
+#define printf_log(level, ...) \
+  do { \
+    if (level <= options.verbosity) { \
+      assert(0 == sem_wait(&options.logfile_sem)); \
+      printf_log_nosync(level, 0, __VA_ARGS__); \
+      assert(0 == sem_post(&options.logfile_sem)); \
+    } \
+  } while (0)
+
+/**
+ * Like printf_log, but also calls "perror" with the given error number
+ * printf_log(enum loglevel level, int errnum, const char *fmt, ...) 
+ */
+#define printf_log_perror(level, e, ...) \
+  do { \
+    int errno_cache = e;  /* emulate call by value, so one can pass `errno` */ \
+    if (level <= options.verbosity) { \
+      assert(0 == sem_wait(&options.logfile_sem)); \
+      printf_log_nosync(level, errno_cache, __VA_ARGS__); \
+      assert(0 == sem_post(&options.logfile_sem)); \
+    } \
+  } while (0)
+
+
+/* it is not advisable to call this directly: use the macros, instead */
+void printf_log_nosync(enum loglevel level, int e, const char *fmt, ...);
 
 struct options {
   bool          help;           /* the --help flag */
   enum loglevel verbosity;
   FILE*         logfile;
+  sem_t         logfile_sem;    /* To implement atomic writes to logfile */
   char*         infile_name;
   FILE*         infile;
+  bool          with_global_lock;       /* if --with-global-lock */
+  sem_t         global_lock;
 };
 
 extern struct options options;

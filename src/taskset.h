@@ -38,7 +38,9 @@ void taskset_init(struct taskset* ts);
 
 int taskset_init_file(struct taskset* ts);
 
-int taskset_start(struct taskset* ts);
+int taskset_create(struct taskset* ts);
+
+void taskset_activate(struct taskset* ts);
 
 void taskset_print(const struct taskset* ts);
 

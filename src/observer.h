@@ -17,9 +17,15 @@
 #ifndef __OBSERVER_H__
 #define __OBSERVER_H__
 
+#include <sched.h>
+
 #define OBSERVER_SCHED_POLICY SCHED_RR
 
 #define OBSERVER_PRIORITY 90
+
+#ifndef OBSERVER_DEFAULT_PERIOD_ns
+#define OBSERVER_DEFAULT_PERIOD_ns (10 * 1000)
+#endif
 
 /**
  * A data structure for storing a per-task persistent observer context
