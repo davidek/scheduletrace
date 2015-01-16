@@ -24,6 +24,7 @@
 #ifndef __COMMON_H__
 #define __COMMON_H__
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <semaphore.h>
 #include <assert.h>
@@ -31,7 +32,13 @@
 
 enum loglevel {LOG_ERROR=-1, LOG_WARNING=0, LOG_INFO=1, LOG_DEBUG=2};
 
-typedef enum {false, true} bool;
+/* typedef enum {false, true} bool; */ /* changed to stdbool */
+
+/**
+ * Similar to `assert` but _always_ executes the expression
+ */
+#define run_assert(expr) \
+  do { if (! expr) assert(false); } while (0)
 
 
 /**
@@ -41,11 +48,12 @@ typedef enum {false, true} bool;
 #define printf_log(level, ...) \
   do { \
     if (level <= options.verbosity) { \
-      if (options.logfile_sync) assert(0 == sem_wait(&options.logfile_sem)); \
+      if (options.logfile_sync) run_assert(0==sem_wait(&options.logfile_sem)); \
       printf_log_nosync(level, 0, __VA_ARGS__); \
-      if (options.logfile_sync) assert(0 == sem_post(&options.logfile_sem)); \
+      if (options.logfile_sync) run_assert(0==sem_post(&options.logfile_sem)); \
     } \
   } while (0)
+
 
 /**
  * Like printf_log, but also calls "perror" with the given error number
@@ -55,9 +63,9 @@ typedef enum {false, true} bool;
   do { \
     int errno_cache = e;  /* emulate call by value, so one can pass `errno` */ \
     if (level <= options.verbosity) { \
-      if (options.logfile_sync) assert(0 == sem_wait(&options.logfile_sem)); \
+      if (options.logfile_sync) run_assert(0==sem_wait(&options.logfile_sem)); \
       printf_log_nosync(level, errno_cache, __VA_ARGS__); \
-      if (options.logfile_sync) assert(0 == sem_post(&options.logfile_sem)); \
+      if (options.logfile_sync) run_assert(0==sem_post(&options.logfile_sem)); \
     } \
   } while (0)
 
@@ -65,6 +73,9 @@ typedef enum {false, true} bool;
 /* it is not advisable to call this directly: use the macros, instead */
 void printf_log_nosync(enum loglevel level, int e, const char *fmt, ...);
 
+/**
+ * A struct for holding global settings and variables.
+ */
 struct options {
   bool          help;           /* the --help flag */
   enum loglevel verbosity;

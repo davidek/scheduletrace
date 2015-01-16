@@ -34,10 +34,16 @@ void task_body(struct task_params* task) {
   printf_log(LOG_INFO, "Hey! period=%ld\n", task->period);
   for (s = 0; s < task->sections_count; s++) {
     for (i = 0; i < task->sections[s].avg; i++) {
+      if (options.with_global_lock)
+        run_assert(0 == sem_wait(&options.global_lock));
+
       task->count ++;
       if (i % 100000 == 0) {
         printf_log(LOG_DEBUG, "%d\n", i/100000);
       }
+
+      if (options.with_global_lock)
+        run_assert(0 == sem_post(&options.global_lock));
     }
   }
 }

@@ -14,6 +14,20 @@
  * limitations under the License.
  */
 
+/**
+ * This module defines data structures for describing tasks and functions
+ * to manage and run them.
+ *
+ * A task is described by a `struct task_params` instance:
+ * It can be initialized either by manually setting its deadline, period,
+ * priority and sections or by providing an initialization string.
+ *
+ * A task can then be created (i.e. its corresponding thread is spawned),
+ * activated (i.e. it starts executing its body sections with the given period).
+ *
+ * Finally, a task can be quit gracefully by setting its `quit` flag.
+ */
+
 #ifndef __TASK_H__
 #define __TASK_H__
 

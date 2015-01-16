@@ -14,6 +14,15 @@
  * limitations under the License.
  */
 
+/**
+ * This module provides a `struct taskset` and the functions to operate on it.
+ *
+ * The basic functionality is to collect a set of tasks and operate collectively
+ * on all of its elements.
+ *
+ * A taskset also holds an instance of the observer context for each task.
+ */
+
 #ifndef __TASKSET_H__
 #define __TASKSET_H__
 

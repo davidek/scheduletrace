@@ -14,6 +14,15 @@
  * limitations under the License.
  */
 
+/**
+ * This module provides a simplified task interface for the observer thread.
+ *
+ * Most of the observer's parameters are defined at compile time, making
+ * this API quite minimal.
+ *
+ * This module also defines the observer context.
+ */
+
 #ifndef __OBSERVER_H__
 #define __OBSERVER_H__
 

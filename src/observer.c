@@ -42,6 +42,9 @@ void observer_body(struct taskset *ts,
     task = &ts->tasks[i];
     ctx = &ts->observer_ctxs[i];
 
+    if (options.with_global_lock)
+      run_assert(0 == sem_wait(&options.global_lock));
+
     if (! task->activated) {
       /* printf_log(LOG_DEBUG, "'%s' not active yet.\n", task->name); */
     }
@@ -56,6 +59,9 @@ void observer_body(struct taskset *ts,
             *obs_it, *dmiss, task->name, task->count, diff);
       ctx->last_counter = task->count;
     }
+
+    if (options.with_global_lock)
+      run_assert(0 == sem_post(&options.global_lock));
   }
 }
 

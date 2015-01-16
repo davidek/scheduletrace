@@ -28,7 +28,7 @@
 #include "observer.h"
 
 
-/* Print the command line help */
+/** Print the command line help */
 void help(const char* cmd_name) {
   printf("\
 Usage: %s [options]\n\
@@ -52,7 +52,7 @@ Runs some threads and displays their schedule.\n\
 }
 
 
-/* Print a "see help" message */
+/** Print a "see help" message */
 void see_help(const char* cmd_name) {
   fprintf(stderr,"Try '%s --help' for more information.\n", cmd_name);
 }
@@ -60,7 +60,7 @@ void see_help(const char* cmd_name) {
 #define WITH_GLOBAL_LOCK        256
 #define NO_LOGFILE_SYNC         257
 
-/* Populate options struct, parsing the command line arguments. */
+/** Populate options struct, parsing the command line arguments. */
 void options_init(int argc, char **argv) {
   int s;        /* return value of library functions */
   int c;        /* the parsed option in the parsing loop */
@@ -153,7 +153,7 @@ void options_init(int argc, char **argv) {
 }
 
 
-/* Fully initialize the graphics library and start the GUI threads */
+/** Fully initialize the graphics library and start the GUI threads */
 void graphics_init() {
   allegro_init();
 
