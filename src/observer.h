@@ -19,14 +19,15 @@
  *
  * Most of the observer's parameters are defined at compile time, making
  * this API quite minimal.
- *
- * This module also defines the observer context.
  */
 
 #ifndef __OBSERVER_H__
 #define __OBSERVER_H__
 
 #include <sched.h>
+
+#include "taskset.h"
+
 
 #define OBSERVER_SCHED_POLICY SCHED_RR
 
@@ -36,18 +37,6 @@
 #define OBSERVER_DEFAULT_PERIOD_ns (10 * 1000)
 #endif
 
-/**
- * A data structure for storing a per-task persistent observer context
- *
- * No other thread but the observer shall ever edit one of these.
- */
-struct observer_ctx {
-  unsigned long last_counter;
-};
-
-#include "taskset.h"  /* deferred to prevent circular import problems */
-
-void observer_ctx_init(struct observer_ctx *ctx);
 
 void observer_start(struct taskset *ts);
 

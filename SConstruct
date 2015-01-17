@@ -15,10 +15,10 @@ if DEBUG:
 else:
     env.Append(CCFLAGS=['-DNDEBUG', '-O3'])
 
-#from pprint import pprint as pp
-#pp(env.__dict__)
+# print env.Dump()  # verbosely displays the building environment
 
-env.Program('scheduletrace', src_files)
+executable = env.Program('scheduletrace', src_files)
+NoClean(executable)
 
 
 # vim: set filetype=python:

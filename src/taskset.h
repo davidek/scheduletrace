@@ -27,20 +27,18 @@
 #define __TASKSET_H__
 
 #include "task.h"
+#include "resources.h"
 #include "common.h"
 
-struct taskset;  /* needed by observer.h */
-
-#include "observer.h"
 
 #ifndef MAX_TASKSET_SIZE
 #define MAX_TASKSET_SIZE 10
 #endif
 
 struct taskset {
-  struct task_params tasks[MAX_TASKSET_SIZE];
-  struct observer_ctx observer_ctxs[MAX_TASKSET_SIZE];
   int tasks_count;
+  struct task_params tasks[MAX_TASKSET_SIZE];
+  struct resource_set resources;
 };
 
 void taskset_init(struct taskset* ts);

@@ -21,7 +21,24 @@
 #include "task.h"
 #include "taskset.h"
 
-void taskset_init(struct taskset* ts) {
+static inline unsigned int umax(unsigned int a, unsigned int b) {
+  return (a > b) ? a : b;
+}
+
+static unsigned int required_resources(struct taskset *ts) {
+  unsigned int ret = 0;
+  int t, s;
+
+  for (t = 0; t < ts->tasks_count; t++) {
+    for (s = 0; s < ts->tasks[t].sections_count; s++) {
+      ret = umax(ret, ts->tasks[t].sections[s].res);
+    }
+  }
+
+  return ret + 1;
+}
+
+void taskset_init(struct taskset *ts) {
   ts->tasks_count = 0;
 }
 
@@ -30,13 +47,14 @@ int taskset_init_file(struct taskset* ts) {
   char *line = NULL;    /* pointer to the line buffer */
   size_t len = 0;       /* size of alloccated line buffer */
   ssize_t read;         /* number of read characters */
+  unsigned int res_len; /* number of resources required by the task set */
 
   taskset_init(ts);
 
   while ((read = getline(&line, &len, options.infile)) != -1
       && ts->tasks_count < MAX_TASKSET_SIZE)
   {
-    if (read == 0 || line[0] == '#')
+    if (read == 0 || line[0] == '#' || line[0] == '\n')
       continue;
 
     s = task_params_init_str(&ts->tasks[ts->tasks_count], line);
@@ -45,7 +63,7 @@ int taskset_init_file(struct taskset* ts) {
           "Task parsing was unsuccessful, skipping task definition.\n");
     }
     else {
-      observer_ctx_init(&ts->observer_ctxs[ts->tasks_count]);
+      ts->tasks[ts->tasks_count].resources = &ts->resources;
       ts->tasks_count ++;
     }
   }
@@ -59,10 +77,14 @@ int taskset_init_file(struct taskset* ts) {
         MAX_TASKSET_SIZE);
   }
 
+  res_len = required_resources(ts);
+  printf_log(LOG_INFO, "Taskset requires %u resources.\n", res_len);
+  resources_init(&ts->resources, res_len);
+
   return 0;
 }
 
-int taskset_create(struct taskset* ts) {
+int taskset_create(struct taskset *ts) {
   int i;
 
   for (i = 0; i < ts->tasks_count; i++) {
@@ -72,7 +94,7 @@ int taskset_create(struct taskset* ts) {
   return 0;
 }
 
-void taskset_activate(struct taskset* ts) {
+void taskset_activate(struct taskset *ts) {
   int i;
 
   for (i = 0; i < ts->tasks_count; i++) {
@@ -80,13 +102,13 @@ void taskset_activate(struct taskset* ts) {
   }
 }
 
-void taskset_print(const struct taskset* ts) {
+void taskset_print(const struct taskset *ts) {
   int i;
   char str[10000];
 
   printf_log(LOG_INFO, "Taskset made of %d tasks.\n", ts->tasks_count);
   for (i = 0; i < ts->tasks_count; i++) {
-    task_str(str, 10000, &ts->tasks[i], 2);
+    task_str(str, 1000, &ts->tasks[i], 2);
     printf_log(LOG_INFO, "%s\n", str);
   }
 }

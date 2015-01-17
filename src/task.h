@@ -37,6 +37,7 @@
 #include <semaphore.h>
 
 #include "common.h"
+#include "resources.h"
 
 
 #ifndef MAX_TASK_SECTIONS
@@ -85,6 +86,9 @@ struct task_params {
   unsigned int deadline;        /* relative, in milliseconds */
   unsigned int priority;        /* in [0,99], allowed values depend on policy */
 
+  /* Set at taskset initialization time */
+  struct resource_set *resources;       /* pointer to the shared resource_set */
+
   /* Automatically set at creation/initialization time */
   char name[MAX_TASK_NAME_LEN + 1];     /* the thread name */  
   sem_t activation_sem; /* newly-created tasks will wait here for activation */
@@ -97,7 +101,9 @@ struct task_params {
   int dmiss;            /* number of deadline misses */
   struct timespec at;   /* next activation time */
   struct timespec dl;   /* next absolute deadline */
-  unsigned long count;  /* counts performed operations */
+
+  struct counter_set counters;  /* count performed operations */
+  struct counter_set observed;  /* count operations that have been observed */
 };
 
 /**

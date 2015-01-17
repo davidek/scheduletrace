@@ -25,22 +25,45 @@
 #include "common.h"
 
 
-void observer_ctx_init(struct observer_ctx *ctx) {
-  ctx->last_counter = 0;
+/** Holds observer's parameters across activations. */
+struct obs_ctx {
+  unsigned long activations;    /* number of activations */
+  unsigned int dmiss;           /* deadline misses */
+  bool quit;
+};
+
+/* returns whether the task performed any operation */
+static bool observe_running_task(struct task_params *task, struct obs_ctx *ctx){
+  struct counter_set diff;
+
+  assert(task->resources != NULL);
+  /* diff = counters; diff -= observed; observed += diff;
+
+     This way, "counters" is read only _once_,
+     which should make this survive even if not semaphore-protected
+  */
+  counter_set_cp(&task->counters, &diff, task->resources->len);
+  counter_set_decrement(&diff,  &task->observed, task->resources->len);
+  counter_set_increment(&task->observed, &diff, task->resources->len);
+
+  if (diff.tot) {
+    printf_log(LOG_DEBUG, "[%lu-dmiss%lu] Counter for %s is %lu (+%lu)\n",
+        ctx->activations,ctx->dmiss, task->name, task->counters.tot, diff.tot);
+  }
+
+  return (diff.tot > 0);
 }
 
-void observer_body(struct taskset *ts,
-    unsigned long *obs_it, unsigned long *dmiss) {
+static void observer_body(struct taskset *ts, struct obs_ctx *ctx) {
   int i;
   struct task_params *task;
-  struct observer_ctx *ctx;
-  unsigned long diff;
+  int finished_tasks = 0;
+  int executed_tasks = 0;
 
-  (*obs_it) ++;
+  ctx->activations ++;
 
   for (i = 0; i < ts->tasks_count; i++) {
     task = &ts->tasks[i];
-    ctx = &ts->observer_ctxs[i];
 
     if (options.with_global_lock)
       run_assert(0 == sem_wait(&options.global_lock));
@@ -49,47 +72,52 @@ void observer_body(struct taskset *ts,
       /* printf_log(LOG_DEBUG, "'%s' not active yet.\n", task->name); */
     }
     else if (task->done) {
+      finished_tasks ++;
       printf_log(LOG_DEBUG, "[%lu-dmiss%lu] '%s' has finished already!\n",
-          *obs_it, *dmiss, task->name);
+          ctx->activations, ctx->dmiss, task->name);
     }
     else {
-      diff = task->count - ctx->last_counter;
-      if (diff)
-        printf_log(LOG_DEBUG, "[%lu-dmiss%lu] Counter for %s is %lu (+%lu)\n",
-            *obs_it, *dmiss, task->name, task->count, diff);
-      ctx->last_counter = task->count;
+      if (observe_running_task(task, ctx))
+        executed_tasks ++;
     }
 
     if (options.with_global_lock)
       run_assert(0 == sem_post(&options.global_lock));
   }
+
+  if (executed_tasks > 1) {
+    printf_log(LOG_DEBUG, "Doh! %d tasks ran while observer was asleep.\n",
+        executed_tasks);
+  }
+
+  if (finished_tasks == ts->tasks_count) {
+    ctx->quit = true;
+    printf_log(LOG_INFO, "Quitting because all tasks are done.\n");
+  }
 }
 
-void observer_loop(struct taskset *ts) {
-  unsigned long obs_iterations; /* number of iterations */
-  unsigned long dmiss;          /* number of deadline misses */
-  struct timespec at;           /* activation time */
-  struct timespec dl;           /* deadline */
-  /*struct timespec t;*/
+static void observer_loop(struct taskset *ts) {
+  struct timespec at;   /* activation time */
+  struct timespec dl;   /* deadline */
+  struct obs_ctx ctx;
 
   pthread_setname_np(pthread_self(), "obs");
-  printf_log(LOG_INFO, "Hello\n");
+  printf_log(LOG_INFO, "Observer started!\n");
 
-  /*t.tv_nsec = 1;
-  t.tv_sec = 0;*/
-  obs_iterations = 0;
-  dmiss = 0;
+  ctx.activations = 0;
+  ctx.dmiss = 0;
+  ctx.quit = false;
+
   set_period_ns(&at, &dl, OBSERVER_DEFAULT_PERIOD_ns, OBSERVER_DEFAULT_PERIOD_ns);
 
-  while (true) {
-    observer_body(ts, &obs_iterations, &dmiss);
+  do {
+    observer_body(ts, &ctx);
 
-    /*clock_nanosleep(CLOCK_MONOTONIC, 0x0, &t, NULL);*/
     wait_for_period_ns(&at, &dl, OBSERVER_DEFAULT_PERIOD_ns);
     if (deadline_miss(&dl)) {
-      dmiss ++;
+      ctx.dmiss ++;
     }
-  }
+  } while (! ctx.quit);
 }
 
 void *observer_function(void* param) {
@@ -113,7 +141,7 @@ static const char *get_sched_policy_string(int policy) {
     case SCHED_OTHER:           return "SCHED_OTHER";
     case SCHED_FIFO:            return "SCHED_FIFO";
     case SCHED_RR:              return "SCHED_RR";
-    default:                    return "UNKCNOWN SCHED POLICY";
+    default:                    return "UNKNOWN SCHED POLICY";
   }
 }
 

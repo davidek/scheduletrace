@@ -24,33 +24,68 @@
 #include "task.h"
 #include "periodic.h"
 #include "common.h"
+#include "resources.h"
 
 
 /* The task body, which shall be executed at every activation of the task */
-void task_body(struct task_params* task) {
-  int s;        /* section index */
-  unsigned long i;      /* operation counter */
+static void task_body(struct task_params* task) {
+  int s;                /* section index */
+  int r;                /* current resource */
+  unsigned long op;     /* operations countdown */
 
-  printf_log(LOG_INFO, "Hey! period=%ld\n", task->period);
+  printf_log(LOG_INFO, "Starting job %lu\n",
+      task->counters.sections / task->sections_count);
+
+  /* Thanks heaven  dot,  arrow,  array indexing  and  postfix increment 
+   * all have the same precedence and associate left-to-right */
+
   for (s = 0; s < task->sections_count; s++) {
-    for (i = 0; i < task->sections[s].avg; i++) {
+
+    r = task->sections[s].res;
+    op = task->sections[s].avg; // TODO: gaussian
+
+    if (options.with_global_lock)
+      run_assert(0 == sem_wait(&options.global_lock));
+
+    task->counters.sections ++;
+    // TODO: lock resource
+    task->counters.acquirements[r] ++;
+    task->counters.tot ++;
+
+    if (options.with_global_lock)
+      run_assert(0 == sem_post(&options.global_lock));
+
+    printf_log(LOG_DEBUG,
+        "Entering section %d of length %lu: (R%d,avg=%lu,dev=%lu)\n",
+        s, op, r, task->sections[s].avg, task->sections[s].dev);
+
+    for (; op > 0; op--) {
+
       if (options.with_global_lock)
         run_assert(0 == sem_wait(&options.global_lock));
 
-      task->count ++;
-      if (i % 100000 == 0) {
-        printf_log(LOG_DEBUG, "%d\n", i/100000);
-      }
+      task->counters.tot ++;
+      task->counters.operations[r] ++;
 
       if (options.with_global_lock)
         run_assert(0 == sem_post(&options.global_lock));
     }
+
+    if (options.with_global_lock)
+      run_assert(0 == sem_wait(&options.global_lock));
+
+    // TODO: unlock resource
+    task->counters.releases[r] ++;
+    task->counters.tot ++;
+
+    if (options.with_global_lock)
+      run_assert(0 == sem_post(&options.global_lock));
   }
 }
 
 
 /* Implememntation of the task */
-void task_loop(struct task_params* task) {
+static void task_loop(struct task_params* task) {
   struct timespec at;
   struct timespec dl;
   int s;
@@ -71,9 +106,10 @@ void task_loop(struct task_params* task) {
   while (! task->quit) {
     task_body(task);
 
-    wait_for_period_ns(&at, &dl, task->period);
+    wait_for_period_ms(&at, &dl, task->period);
     if (deadline_miss(&dl)) {
       task->dmiss ++;
+      printf_log(LOG_WARNING, "Deadline miss! (so far: %d)\n", task->dmiss);
     }
   }
 
@@ -100,11 +136,15 @@ void task_params_init(struct task_params* task) {
   task->deadline = DEFAULT_TASK_DEADLINE;
   task->priority = DEFAULT_TASK_PRIORITY;
 
+  task->resources = NULL;
+
   task->activated = false;
   task->quit = false;
   task->done = false;
   task->dmiss = 0;
-  task->count = 0;
+
+  counter_set_init(&task->counters);
+  counter_set_init(&task->observed);
 }
 
 
@@ -159,7 +199,7 @@ void task_str(char *str,int len, const struct task_params *task, int verbosity){
   if (verbosity >= 1) {
     n = snprintf(str, len,
         "\n  active=%d, quit=%d, done=%d, dmiss=%d, count=%lu, %u section[s];",
-        task->activated, task->quit, task->done, task->dmiss, task->count,
+        task->activated,task->quit,task->done,task->dmiss, task->counters.tot,
         task->sections_count);
     len -= n; str += n; assert(len > 0);
   }
