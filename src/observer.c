@@ -14,6 +14,11 @@
  * limitations under the License.
  */
 
+/**
+ * Implementation of the API in "observer.h"
+ */
+
+#include <stdlib.h>
 #include <assert.h>
 #include <errno.h>
 #include <pthread.h>
@@ -22,6 +27,7 @@
 #include "task.h"
 #include "taskset.h"
 #include "periodic.h"
+#include "trace.h"
 #include "common.h"
 
 
@@ -35,6 +41,7 @@ struct obs_ctx {
 /* returns whether the task performed any operation */
 static bool observe_running_task(struct task_params *task, struct obs_ctx *ctx){
   struct counter_set diff;
+  //int r;
 
   assert(task->resources != NULL);
   /* diff = counters; diff -= observed; observed += diff;
@@ -50,6 +57,10 @@ static bool observe_running_task(struct task_params *task, struct obs_ctx *ctx){
     printf_log(LOG_DEBUG, "[%lu-dmiss%lu] Counter for %s is %lu (+%lu)\n",
         ctx->activations,ctx->dmiss, task->name, task->counters.tot, diff.tot);
   }
+
+  /*for (r = 0; r < task->resources->len; r++) {
+    ctx->
+  }*/
 
   return (diff.tot > 0);
 }
@@ -128,9 +139,9 @@ void *observer_function(void* param) {
 /* handle errors that may happen in observer_start */
 #define handle_error_en(en, fname) \
   do { \
-    printf_log_perror(LOG_WARNING, en, \
-        "Error while calling function %s: ", fname); \
-    return; \
+    printf_log_perror(LOG_ERROR, en, \
+        "Error in observer_start while calling %s: ", fname); \
+    exit(1); \
   } while (0)
 
 #define handle_error_en_clean(en, fname) \
@@ -145,7 +156,7 @@ static const char *get_sched_policy_string(int policy) {
   }
 }
 
-void observer_start(struct taskset *ts) {
+pthread_t observer_start(struct taskset *ts) {
   pthread_t tid;                        /* thread object */
   pthread_attr_t tattr;                 /* thread attributes */
   struct sched_param sched_param;       /* scheduling parameters */
@@ -157,7 +168,8 @@ void observer_start(struct taskset *ts) {
   s = pthread_attr_init(&tattr);
   if (s) handle_error_en(s, "pthread_attr_init");
 
-  s = pthread_attr_setdetachstate(&tattr, PTHREAD_CREATE_DETACHED);
+  /*s = pthread_attr_setdetachstate(&tattr, PTHREAD_CREATE_DETACHED);*/
+  s = pthread_attr_setdetachstate(&tattr, PTHREAD_CREATE_JOINABLE);
   if (s) handle_error_en_clean(s, "pthread_attr_setdetachstate");
 
   s = pthread_attr_setinheritsched(&tattr, PTHREAD_EXPLICIT_SCHED);
@@ -179,5 +191,7 @@ void observer_start(struct taskset *ts) {
   if (s) handle_error_en_clean(s, "pthread_create");
 
   pthread_attr_destroy(&tattr);
+
+  return tid;
 }
 #undef handle_error_en

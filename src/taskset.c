@@ -14,6 +14,10 @@
  * limitations under the License.
  */
 
+/**
+ * Implementation of the API in "taskset.h"
+ */
+
 #include <stdlib.h>
 #include <stdio.h>
 
@@ -21,21 +25,22 @@
 #include "task.h"
 #include "taskset.h"
 
-static inline unsigned int umax(unsigned int a, unsigned int b) {
-  return (a > b) ? a : b;
-}
 
-static unsigned int required_resources(struct taskset *ts) {
-  unsigned int ret = 0;
-  int t, s;
+static void resources_setup_from_tasks(struct taskset *ts) {
+  int t, s;  /* loop indices for tasks and sections */
+
+  resources_init(&ts->resources);
 
   for (t = 0; t < ts->tasks_count; t++) {
     for (s = 0; s < ts->tasks[t].sections_count; s++) {
-      ret = umax(ret, ts->tasks[t].sections[s].res);
+      resources_update(&ts->resources,
+          ts->tasks[t].sections[s].res, ts->tasks[t].priority);
     }
   }
 
-  return ret + 1;
+  printf_log(LOG_INFO, "Taskset required %d resource[s]\n", ts->resources.len);
+
+  resources_locks_init(&ts->resources);
 }
 
 void taskset_init(struct taskset *ts) {
@@ -47,7 +52,6 @@ int taskset_init_file(struct taskset* ts) {
   char *line = NULL;    /* pointer to the line buffer */
   size_t len = 0;       /* size of alloccated line buffer */
   ssize_t read;         /* number of read characters */
-  unsigned int res_len; /* number of resources required by the task set */
 
   taskset_init(ts);
 
@@ -77,9 +81,7 @@ int taskset_init_file(struct taskset* ts) {
         MAX_TASKSET_SIZE);
   }
 
-  res_len = required_resources(ts);
-  printf_log(LOG_INFO, "Taskset requires %u resources.\n", res_len);
-  resources_init(&ts->resources, res_len);
+  resources_setup_from_tasks(ts);
 
   return 0;
 }

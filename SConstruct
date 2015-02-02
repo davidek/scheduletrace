@@ -11,7 +11,7 @@ env.Append(LIBS=['rt'])
 env.ParseConfig('allegro-config --libs')
 
 if DEBUG:
-    env.Append(CCFLAGS=['-g'])
+    env.Append(CCFLAGS=['-g', '-Werror'])
 else:
     env.Append(CCFLAGS=['-DNDEBUG', '-O3'])
 

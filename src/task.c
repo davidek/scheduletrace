@@ -14,6 +14,10 @@
  * limitations under the License.
  */
 
+/**
+ * Implementation of the API in "task.h"
+ */
+
 #include <errno.h>
 #include <assert.h>
 #include <pthread.h>
@@ -44,11 +48,13 @@ static void task_body(struct task_params* task) {
     r = task->sections[s].res;
     op = task->sections[s].avg; // TODO: gaussian
 
+    /* acquire resource outside the global lock to prevent deadlock */
+    resource_acquire(task->resources, r);
+
     if (options.with_global_lock)
       run_assert(0 == sem_wait(&options.global_lock));
 
     task->counters.sections ++;
-    // TODO: lock resource
     task->counters.acquirements[r] ++;
     task->counters.tot ++;
 
@@ -56,7 +62,7 @@ static void task_body(struct task_params* task) {
       run_assert(0 == sem_post(&options.global_lock));
 
     printf_log(LOG_DEBUG,
-        "Entering section %d of length %lu: (R%d,avg=%lu,dev=%lu)\n",
+        "Entered section %d of length %lu: (R%d,avg=%lu,dev=%lu)\n",
         s, op, r, task->sections[s].avg, task->sections[s].dev);
 
     for (; op > 0; op--) {
@@ -71,10 +77,12 @@ static void task_body(struct task_params* task) {
         run_assert(0 == sem_post(&options.global_lock));
     }
 
+    /* Release resource outside the global lock */
+    resource_release(task->resources, r);
+
     if (options.with_global_lock)
       run_assert(0 == sem_wait(&options.global_lock));
 
-    // TODO: unlock resource
     task->counters.releases[r] ++;
     task->counters.tot ++;
 
@@ -148,6 +156,7 @@ void task_params_init(struct task_params* task) {
 }
 
 
+/* documented in header file */
 int task_params_init_str(struct task_params *task, const char *initstr) {
   int n = -1;   /* stores the number of chars read */
   struct task_section *sect;    /* the section currently being parsed */
@@ -187,6 +196,7 @@ int task_params_init_str(struct task_params *task, const char *initstr) {
 }
 
 
+/* documented in header file */
 void task_str(char *str,int len, const struct task_params *task, int verbosity){
   int n,        /* number of chars consumed by subsequent calls to sprintf */
       i;        /* loop index for iterating task sections */
@@ -280,6 +290,7 @@ void task_create(struct task_params *task) {
 #undef handle_error_en
 
 
+/* documented in header file */
 void task_activate(struct task_params *task) {
   sem_post(&task->activation_sem);
 }

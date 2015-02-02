@@ -39,6 +39,7 @@
 
 struct resource_set {
   int len;
+  int prioceilings[MAX_RESOURCES - 1];
   pthread_mutex_t locks[MAX_RESOURCES - 1];
 };
 
@@ -52,13 +53,25 @@ struct counter_set {
   unsigned long tot;                            /* - any of the previous */
 };
 
-void resources_init(struct resource_set *resources, int len);
 
-void resources_free(struct resource_set *resources);
+/** Initialize the struct for using with the `update` function */
+void resources_init(struct resource_set *resources);
+
+/**
+ * Update the resources given that resource `r` will be used by a task
+ * of priority `prio` 
+ */
+void resources_update(struct resource_set *resources, int r, int prio);
+
+/** Initialize actual locks: after this, don't call `update` any more. */
+void resources_locks_init(struct resource_set *resources);
+
+void resources_locks_free(struct resource_set *resources);
 
 void resource_acquire(struct resource_set *resources, int r);
 
 void resource_release(struct resource_set *resources, int r);
+
 
 void counter_set_init(struct counter_set *counters);
 

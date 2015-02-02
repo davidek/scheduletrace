@@ -14,27 +14,106 @@
  * limitations under the License.
  */
 
+/**
+ * Implementation of the API in "resources.h"
+ */
+
 #include <string.h>
+#include <pthread.h>
+#include <stdlib.h>
 
 #include "resources.h"
 #include "common.h"
 
 
 /** Initializes a lock according to compile- and run-time parameters */
-void lock_init(pthread_mutex_t *lock) {
+void lock_init(pthread_mutex_t *lock, int prioceiling) {
+  int s;
+  pthread_mutexattr_t mattr;
 
+  s = pthread_mutexattr_init(&mattr);
+  if (s) {
+    printf_log_perror(LOG_WARNING, s,
+        "Error in lock_init while calling pthread_mutexattr_init: ");
+    return;
+  }
+
+  /* type: NORMAL / RECURSIVE / ERRORCHECK / DEFAULT */
+  s = pthread_mutexattr_settype(&mattr, PTHREAD_MUTEX_ERRORCHECK);
+  if (s) {
+    printf_log_perror(LOG_WARNING, s,
+        "Error in lock_init while calling pthread_mutexattr_settype: ");
+    return;
+  }
+
+  /* TODO: options.mutex_protocol */
+  s = pthread_mutexattr_setprotocol(&mattr, PTHREAD_PRIO_NONE);
+  if (s) {
+    printf_log_perror(LOG_WARNING, s,
+        "Error in lock_init while calling pthread_mutexattr_setprotocol: ");
+    return;
+  }
+
+  /*  TODO
+  if (options.mutex_protocol == PTHREAD_PRIO_PROTECT) {
+    s = pthread_mutexattr_setprioceiling(&mattr, prioceiling);
+    if (s) {
+      printf_log_perror(LOG_WARNING, s,
+          "Error in lock_init while calling pthread_mutexattr_setprioceiling:");
+      return;
+    }
+  }
+  */
+
+  s = pthread_mutex_init(lock, &mattr);
+  if (s) {
+    printf_log_perror(LOG_WARNING, s,
+        "Error in lock_init while calling pthread_mutex_init: ");
+    return;
+  }
+
+  s = pthread_mutexattr_destroy(&mattr);
+  assert(s == 0);
 }
 
-void resources_init(struct resource_set *resources, int len) {
+void resources_init(struct resource_set *resources) {
   int r;
 
-  resources->len = len;
-  for (r = 1;  r < len; r++) {
-    lock_init(&resources->locks[r-1]);
+  resources->len = 0;
+  for (r = 1; r < MAX_RESOURCES; r++) {
+    resources->prioceilings[r-1] = -1;
   }
 }
 
-void resources_free(struct resource_set *resources) {
+static inline int max(int a, int b) {
+  return (a > b) ? a : b;
+}
+
+void resources_update(struct resource_set *resources, int r, int prio) {
+  if (r >= MAX_RESOURCES) {
+    printf_log(LOG_ERROR, "Resources number %d exceeds max resources (%d).\n",
+        r, MAX_RESOURCES);
+    exit(1);
+  }
+
+  resources->len = max(r + 1, resources->len);
+  if (r > 0) {
+    resources->prioceilings[r-1] = max(prio, resources->prioceilings[r-1]);
+  }
+}
+
+void resources_locks_init(struct resource_set *resources) {
+  int r;
+
+  printf_log(LOG_INFO, "Initializing locks for resources.\n");
+  for (r = 1;  r < resources->len; r++) {
+    printf_log(LOG_DEBUG, "  Resource R%d with priority ceiling %d;\n",
+        r, resources->prioceilings[r-1]);
+    lock_init(&resources->locks[r-1], resources->prioceilings[r-1]);
+  }
+}
+
+void resources_locks_free(struct resource_set *resources) {
   int r;
   int s;
 

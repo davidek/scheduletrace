@@ -25,6 +25,7 @@
 #define __OBSERVER_H__
 
 #include <sched.h>
+#include <pthread.h>
 
 #include "taskset.h"
 
@@ -38,6 +39,6 @@
 #endif
 
 
-void observer_start(struct taskset *ts);
+pthread_t observer_start(struct taskset *ts);
 
 #endif

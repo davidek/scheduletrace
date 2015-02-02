@@ -14,6 +14,13 @@
  * limitations under the License.
  */
 
+/**
+ * This file holds the implementation for the command-line interface.
+ *
+ * The main function sets up the global `opetions` parsing the command line
+ * and triggers all the required threads to start, using their respective APIs.
+ */
+
 #include <stdio.h>
 #include <unistd.h>
 #include <getopt.h>
@@ -133,7 +140,7 @@ void options_init(int argc, char **argv) {
   }
 
   if (options.with_global_lock) {
-     printf_log(LOG_INFO, "Using global lock, who knows what will happen...\n");
+     printf_log(LOG_INFO, "Using global lock...\n");
      s = sem_init(&options.global_lock, 0, 1);
      if (s < 0) {
        printf_log_perror(LOG_ERROR, errno,
@@ -162,7 +169,9 @@ void graphics_init() {
 
 
 int main(int argc, char **argv) {
+  int s;
   struct taskset ts;
+  pthread_t obs_tid;
 
   options_init(argc, argv);
 
@@ -181,14 +190,16 @@ int main(int argc, char **argv) {
   
   printf_log(LOG_INFO, "Taskset successfully initialized!\n");
 
-  observer_start(&ts);
-sleep(1);
+  obs_tid = observer_start(&ts);
   taskset_activate(&ts);
   
   sleep(1);
   printf_log(LOG_INFO, "Quitting tasks!\n");
   taskset_quit(&ts);
-  sleep(1);
+
+  s = pthread_join(obs_tid, NULL);
+  if (s) printf_log_perror(LOG_WARNING, s,
+      "Failed call to pthread_join while trying to join observer: ");
 
   printf_log(LOG_INFO, "Exiting scheduletrace.\n");
   exit(0);
