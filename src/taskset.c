@@ -38,7 +38,8 @@ static void resources_setup_from_tasks(struct taskset *ts) {
     }
   }
 
-  printf_log(LOG_INFO, "Taskset required %d resource[s]\n", ts->resources.len);
+  printf_log(LOG_INFO, "Taskset required %d resource[s] (including dummy R0)\n",
+      ts->resources.len);
 
   resources_locks_init(&ts->resources);
 }

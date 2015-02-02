@@ -17,7 +17,7 @@
 /**
  * This file holds the implementation for the command-line interface.
  *
- * The main function sets up the global `opetions` parsing the command line
+ * The main function sets up the global `options` parsing the command line
  * and triggers all the required threads to start, using their respective APIs.
  */
 
@@ -32,7 +32,6 @@
 #include "common.h"
 #include "task.h"
 #include "taskset.h"
-#include "observer.h"
 
 
 /** Print the command line help */
@@ -52,10 +51,15 @@ Runs some threads and displays their schedule.\n\
                         (otherways enabled by default).\n\
                         When disabled, the output may turn into a mess.\n\
 \n\
+", cmd_name);
+
+/*
       --with-global-lock\n\
                         Enable a global lock for every operation by observed\n\
                         and observer threads (default disabled).\n\
-", cmd_name);
+*/
+
+
 }
 
 
@@ -64,7 +68,7 @@ void see_help(const char* cmd_name) {
   fprintf(stderr,"Try '%s --help' for more information.\n", cmd_name);
 }
 
-#define WITH_GLOBAL_LOCK        256
+/* #define WITH_GLOBAL_LOCK        256 */
 #define NO_LOGFILE_SYNC         257
 
 /** Populate options struct, parsing the command line arguments. */
@@ -76,7 +80,7 @@ void options_init(int argc, char **argv) {
     {"verbose", no_argument, NULL, 'v' },
     {"quiet", no_argument, NULL, 'q' },
     {"file", required_argument, NULL, 'f'},
-    {"with-global-lock", no_argument, NULL, WITH_GLOBAL_LOCK},
+    /* {"with-global-lock", no_argument, NULL, WITH_GLOBAL_LOCK}, */
     {"no-logfile-sync", no_argument, NULL, NO_LOGFILE_SYNC},
     {NULL, 0, NULL, 0}
   };
@@ -88,7 +92,8 @@ void options_init(int argc, char **argv) {
   options.logfile_sync = true;
   options.infile_name = "-";
   options.infile = stdin;
-  options.with_global_lock = false;
+  options.tick = 0UL;
+  /* options.with_global_lock = false; */
 
   /* Parse command line */
   while (true) {
@@ -110,9 +115,9 @@ void options_init(int argc, char **argv) {
         assert(optarg != NULL);
         options.infile_name = optarg;
         break;
-      case WITH_GLOBAL_LOCK:
+      /*case WITH_GLOBAL_LOCK:
         options.with_global_lock = true;
-        break;
+        break;*/
       case NO_LOGFILE_SYNC:
         options.logfile_sync = false;
         break;
@@ -139,14 +144,14 @@ void options_init(int argc, char **argv) {
         " become messy.\n");
   }
 
-  if (options.with_global_lock) {
+  /*if (options.with_global_lock) {
      printf_log(LOG_INFO, "Using global lock...\n");
-     s = sem_init(&options.global_lock, 0, 1);
-     if (s < 0) {
-       printf_log_perror(LOG_ERROR, errno,
-           "Error calling sem_init for global_lock: ");
-       exit(1);
-     }
+  }*/
+  s = sem_init(&options.task_lock, 0, 1);
+  if (s < 0) {
+    printf_log_perror(LOG_ERROR, errno,
+        "Error calling sem_init for task_lock: ");
+    exit(1);
   }
 
   if (strcmp(options.infile_name, "-") != 0) {
@@ -169,9 +174,7 @@ void graphics_init() {
 
 
 int main(int argc, char **argv) {
-  int s;
   struct taskset ts;
-  pthread_t obs_tid;
 
   options_init(argc, argv);
 
@@ -190,16 +193,11 @@ int main(int argc, char **argv) {
   
   printf_log(LOG_INFO, "Taskset successfully initialized!\n");
 
-  obs_tid = observer_start(&ts);
   taskset_activate(&ts);
   
   sleep(1);
   printf_log(LOG_INFO, "Quitting tasks!\n");
   taskset_quit(&ts);
-
-  s = pthread_join(obs_tid, NULL);
-  if (s) printf_log_perror(LOG_WARNING, s,
-      "Failed call to pthread_join while trying to join observer: ");
 
   printf_log(LOG_INFO, "Exiting scheduletrace.\n");
   exit(0);

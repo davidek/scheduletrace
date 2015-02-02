@@ -48,18 +48,16 @@ static void task_body(struct task_params* task) {
     r = task->sections[s].res;
     op = task->sections[s].avg; // TODO: gaussian
 
-    /* acquire resource outside the global lock to prevent deadlock */
+    /* acquire resource outside the task lock to prevent deadlock */
     resource_acquire(task->resources, r);
 
-    if (options.with_global_lock)
-      run_assert(0 == sem_wait(&options.global_lock));
+    run_assert(0 == sem_wait(&options.task_lock));
 
     task->counters.sections ++;
     task->counters.acquirements[r] ++;
     task->counters.tot ++;
 
-    if (options.with_global_lock)
-      run_assert(0 == sem_post(&options.global_lock));
+    run_assert(0 == sem_post(&options.task_lock));
 
     printf_log(LOG_DEBUG,
         "Entered section %d of length %lu: (R%d,avg=%lu,dev=%lu)\n",
@@ -67,27 +65,23 @@ static void task_body(struct task_params* task) {
 
     for (; op > 0; op--) {
 
-      if (options.with_global_lock)
-        run_assert(0 == sem_wait(&options.global_lock));
+      run_assert(0 == sem_wait(&options.task_lock));
 
       task->counters.tot ++;
       task->counters.operations[r] ++;
 
-      if (options.with_global_lock)
-        run_assert(0 == sem_post(&options.global_lock));
+      run_assert(0 == sem_post(&options.task_lock));
     }
 
-    /* Release resource outside the global lock */
+    /* Release resource outside the task lock */
     resource_release(task->resources, r);
 
-    if (options.with_global_lock)
-      run_assert(0 == sem_wait(&options.global_lock));
+    run_assert(0 == sem_wait(&options.task_lock));
 
     task->counters.releases[r] ++;
     task->counters.tot ++;
 
-    if (options.with_global_lock)
-      run_assert(0 == sem_post(&options.global_lock));
+    run_assert(0 == sem_post(&options.task_lock));
   }
 }
 

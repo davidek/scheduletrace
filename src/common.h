@@ -32,7 +32,8 @@
 
 enum loglevel {LOG_ERROR=-1, LOG_WARNING=0, LOG_INFO=1, LOG_DEBUG=2};
 
-/* typedef enum {false, true} bool; */ /* changed to stdbool */
+/* typedef enum {false, true} bool; */ /* removed, now using stdbool */
+
 
 /**
  * Similar to `assert` but _always_ executes the expression
@@ -73,6 +74,7 @@ enum loglevel {LOG_ERROR=-1, LOG_WARNING=0, LOG_INFO=1, LOG_DEBUG=2};
 /* it is not advisable to call this directly: use the macros, instead */
 void printf_log_nosync(enum loglevel level, int e, const char *fmt, ...);
 
+
 /**
  * A struct for holding global settings and variables.
  */
@@ -84,8 +86,9 @@ struct options {
   sem_t         logfile_sem;    /* To implement atomic writes to logfile */
   char*         infile_name;
   FILE*         infile;
-  bool          with_global_lock;       /* if --with-global-lock */
-  sem_t         global_lock;
+  /* bool          with_global_lock;       / * if --with-global-lock */
+  sem_t         task_lock;
+  unsigned long tick;
 };
 
 extern struct options options;
