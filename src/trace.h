@@ -61,10 +61,11 @@ const char *evt_string(int evt);
 
 struct trace_evt {
   int type;     /* Type of event, among the EVT_* constants defined here. */
-  int task;     /* Task index. 0 for idle task. */
+  int task;     /* Task index. -1 for idle task. */
   int res;      /* Resource used. 0 for no resource. */
   int count;    /* Number of consecutive equivalent events. */
   struct timespec time; /* Event timestamp, or start time for EVT_RUN */
+  unsigned long tick;    /* Event tickstamp, or start tick for EVT_RUN */
 };
 
 struct trace {

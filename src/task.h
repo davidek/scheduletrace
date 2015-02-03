@@ -39,6 +39,8 @@
 #include "common.h"
 #include "resources.h"
 
+struct taskset;  /* can't include taskset before defining task_params */
+
 
 #ifndef MAX_TASK_SECTIONS
 #define MAX_TASK_SECTIONS 10
@@ -79,7 +81,8 @@ struct task_section {
  * Parameters required to start and run a periodic task
  */
 struct task_params {
-  /* To be set by the user before starting the thread */
+  /* To be set by the user before starting the task (or by task_init_str) */
+  int id;                       /* id of this task (to match index in taskset)*/
   struct task_section sections[MAX_TASK_SECTIONS];  /* sequence of sections */
   int sections_count;           /* length of `sections` */
   unsigned int period;          /* in milliseconds */
@@ -87,24 +90,26 @@ struct task_params {
   unsigned int priority;        /* in [0,99], allowed values depend on policy */
 
   /* Set at taskset initialization time */
-  struct resource_set *resources;       /* pointer to the shared resource_set */
+  struct taskset *ts;   /* pointer to the taskset containing some shared vars */
 
-  /* Automatically set at creation/initialization time */
+  /* Set at creation/initialization time */
   char name[MAX_TASK_NAME_LEN + 1];     /* the thread name */  
   sem_t activation_sem; /* newly-created tasks will wait here for activation */
   bool activated;       /* becomes true after activation */
   pthread_t tid;        /* the thread id */
 
   /* Updated and used during execution */
+  unsigned long last_tick;      /* tick value last time this task executed */
   bool quit;            /* when true, instructs the task to stop gracefully */
   bool done;            /* becomes true after the task has stopped gracefully */
   int dmiss;            /* number of deadline misses */
+  int jobs;             /* number of jobs executed */
   struct timespec at;   /* next activation time */
   struct timespec dl;   /* next absolute deadline */
-
-  struct counter_set counters;  /* count performed operations */
-  struct counter_set observed;  /* count operations that have been observed */
 };
+
+#include "taskset.h"  /* Deferred include avoids circular dependency */
+
 
 /**
  * Initializes a task_params with defaults.
@@ -114,9 +119,10 @@ struct task_params {
 void task_params_init(struct task_params *task);
 
 /**
- * Initializes a task_params according to the given description string
+ * Initializes a task_params according to the given description string,
+ * and with the given id.
  */
-int task_params_init_str(struct task_params *task, const char *initstr);
+int task_params_init_str(struct task_params *task, const char *initstr, int id);
 
 /**
  * Create the thread for the task described by the given structure.
@@ -129,6 +135,11 @@ void task_create(struct task_params *task);
  * Activate the task
  */
 void task_activate(struct task_params *task);
+
+/**
+ * Join the task's thread (to be called _after_ having instructed it to quit)
+ */
+void task_join(struct task_params *task);
 
 /**
  * Write a string representation of the task into *str.

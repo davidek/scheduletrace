@@ -26,9 +26,14 @@
 #ifndef __TASKSET_H__
 #define __TASKSET_H__
 
-#include "task.h"
-#include "resources.h"
+#include <time.h>
+#include <pthread.h>
+#include <semaphore.h>
+
 #include "common.h"
+#include "resources.h"
+#include "task.h"
+#include "trace.h"
 
 
 #ifndef MAX_TASKSET_SIZE
@@ -38,7 +43,15 @@
 struct taskset {
   int tasks_count;
   struct task_params tasks[MAX_TASKSET_SIZE];
+
   struct resource_set resources;
+
+  sem_t task_lock;      /* mutex protecting writes to tick and trace */
+  unsigned long tick;   /* global taskset tick */
+  struct trace trace;   /* the event trace */
+  struct trace_evt *next_evt;   /* the next event, to be added when ready */
+
+  struct timespec t0;   /* time when taskset_activate is called */
 };
 
 void taskset_init(struct taskset* ts);
@@ -52,5 +65,7 @@ void taskset_activate(struct taskset* ts);
 void taskset_print(const struct taskset* ts);
 
 void taskset_quit(struct taskset *ts);
+
+void taskset_join(struct taskset *ts);
 
 #endif

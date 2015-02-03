@@ -15,7 +15,8 @@
  */
 
 /**
- * Implementation of the API in "task.h"
+ * Implementation of the API in "task.h", including the utilities to handle
+ * tasks and the tasks' body.
  */
 
 #include <errno.h>
@@ -31,14 +32,61 @@
 #include "resources.h"
 
 
-/* The task body, which shall be executed at every activation of the task */
-static void task_body(struct task_params* task) {
+/** 
+ * Increments the global tick, considering that calling task owns the given
+ * resource and is performing an action of the given type.
+ * If needed, saves the current trace event and creates a new one.
+ * _Always_ to be called while owning the task_lock
+ */
+static void tick_pp(struct task_params *task, int res, int type) {
+  struct taskset *ts = task->ts;        /* for convenience */
+
+  assert(ts->tick >= task->last_tick);
+  assert(ts->tick >= ts->next_evt->tick);
+
+  if (/* Detected context switch or same task changed activity */
+      (task->last_tick < ts->tick)
+      || (task->last_tick == ts->tick && ts->next_evt->type != type)
+     )
+  {
+    printf_log(LOG_DEBUG, "Evt. (I've been asleep for %lu)\n",
+        ts->tick - task->last_tick);
+    /*printf_log(LOG_DEBUG, "TRACE: task %d ran for %lu owning R%d\n",
+        ts->next_evt->, ts->tick - ts->traced_tick, ts->curr_res);*/
+
+    trace_next_add(&ts->trace);
+    ts->next_evt = trace_next(&ts->trace);
+
+    ts->next_evt->type = type;
+    ts->next_evt->task = task->id;
+    ts->next_evt->res = res;
+    ts->next_evt->count = 0;  /* will be incremented immediately */
+    ts->next_evt->tick = ts->tick + 1;
+    clock_gettime(CLOCK_MONOTONIC, &ts->next_evt->time);
+  }
+
+  ts->tick ++;
+  ts->next_evt->count ++;
+  task->last_tick = task->ts->tick;
+
+  //printf_log(LOG_ERROR, "evt_count: %lu, evt_tick: %lu, tick: %lu\n",
+  //    ts->next_evt->count, ts->next_evt->tick, ts->tick);
+  assert(ts->next_evt->count > 0);
+  assert(ts->next_evt->count == 1  ||  ts->next_evt->type == EVT_RUN);
+  assert(ts->next_evt->count != 1  ||  ts->next_evt->tick == ts->tick);
+  assert(ts->next_evt->task == task->id);
+  assert(ts->next_evt->type == type);
+  assert(ts->next_evt->res == res);
+}
+
+
+/** The task body, which shall be executed at every activation of the task */
+static void task_body(struct task_params *task) {
   int s;                /* section index */
   int r;                /* current resource */
   unsigned long op;     /* operations countdown */
 
-  printf_log(LOG_INFO, "Starting job %lu\n",
-      task->counters.sections / task->sections_count);
+  printf_log(LOG_INFO, "Starting job %d\n", task->jobs);
 
   /* Thanks heaven  dot,  arrow,  array indexing  and  postfix increment 
    * all have the same precedence and associate left-to-right */
@@ -48,40 +96,33 @@ static void task_body(struct task_params* task) {
     r = task->sections[s].res;
     op = task->sections[s].avg; // TODO: gaussian
 
-    /* acquire resource outside the task lock to prevent deadlock */
-    resource_acquire(task->resources, r);
+    /* Acquire resource outside the task lock to prevent deadlocks.
+     * Note taht this may cause the "acquired" report to be slightly delayed
+     * from the actual acquirement, but it is no big deal.
+     */
+    resource_acquire(&task->ts->resources, r);
 
-    run_assert(0 == sem_wait(&options.task_lock));
+    run_assert(0 == sem_wait(&task->ts->task_lock));
+    tick_pp(task, r, EVT_ACQUIRE);
+    run_assert(0 == sem_post(&task->ts->task_lock));
 
-    task->counters.sections ++;
-    task->counters.acquirements[r] ++;
-    task->counters.tot ++;
-
-    run_assert(0 == sem_post(&options.task_lock));
-
-    printf_log(LOG_DEBUG,
+    printf_log(LOG_INFO,
         "Entered section %d of length %lu: (R%d,avg=%lu,dev=%lu)\n",
         s, op, r, task->sections[s].avg, task->sections[s].dev);
 
     for (; op > 0; op--) {
 
-      run_assert(0 == sem_wait(&options.task_lock));
-
-      task->counters.tot ++;
-      task->counters.operations[r] ++;
-
-      run_assert(0 == sem_post(&options.task_lock));
+      run_assert(0 == sem_wait(&task->ts->task_lock));
+      tick_pp(task, r, EVT_RUN);
+      run_assert(0 == sem_post(&task->ts->task_lock));
     }
 
     /* Release resource outside the task lock */
-    resource_release(task->resources, r);
+    resource_release(&task->ts->resources, r);
 
-    run_assert(0 == sem_wait(&options.task_lock));
-
-    task->counters.releases[r] ++;
-    task->counters.tot ++;
-
-    run_assert(0 == sem_post(&options.task_lock));
+    run_assert(0 == sem_wait(&task->ts->task_lock));
+    tick_pp(task, r, EVT_RELEASE);
+    run_assert(0 == sem_post(&task->ts->task_lock));
   }
 }
 
@@ -92,7 +133,12 @@ static void task_loop(struct task_params* task) {
   struct timespec dl;
   int s;
 
-  pthread_setname_np(pthread_self(), task->name);
+  s = pthread_setname_np(pthread_self(), task->name);
+  if (s) {
+    printf_log_perror(LOG_WARNING, s,
+        "Task activation failed: pthread_setname_np returned error: ");
+    return;
+  }
 
   s = sem_wait(&task->activation_sem);
   if (s < 0) {
@@ -100,6 +146,12 @@ static void task_loop(struct task_params* task) {
         "Task activation failed: sem_wait returned error: ");
     return;
   }
+  s = sem_destroy(&task->activation_sem);
+  if (s < 0) {
+    printf_log_perror(LOG_WARNING, errno,
+        "Task activation failed: sem_destroy returned error: ");
+  }
+
   task->activated = true;
   printf_log(LOG_INFO, "Activated!\n");
 
@@ -111,7 +163,7 @@ static void task_loop(struct task_params* task) {
     wait_for_period_ms(&at, &dl, task->period);
     if (deadline_miss(&dl)) {
       task->dmiss ++;
-      printf_log(LOG_WARNING, "Deadline miss! (so far: %d)\n", task->dmiss);
+      printf_log(LOG_INFO, "Deadline miss! (so far: %d)\n", task->dmiss);
     }
   }
 
@@ -128,33 +180,30 @@ void *task_function(void* task) {
 
 /* documented in header file */
 void task_params_init(struct task_params* task) {
-  static int task_count = 0;    /* enumerate created tasks */
-
-  snprintf(task->name, MAX_TASK_NAME_LEN + 1, "task%d", task_count);
-  task_count ++;
+  snprintf(task->name, MAX_TASK_NAME_LEN + 1, "task%d", task->id);
 
   task->sections_count = 0;
   task->period = DEFAULT_TASK_PERIOD;
   task->deadline = DEFAULT_TASK_DEADLINE;
   task->priority = DEFAULT_TASK_PRIORITY;
 
-  task->resources = NULL;
+  task->ts = NULL;
 
+  task->last_tick = 0UL;
   task->activated = false;
   task->quit = false;
   task->done = false;
   task->dmiss = 0;
-
-  counter_set_init(&task->counters);
-  counter_set_init(&task->observed);
+  task->jobs = 0;
 }
 
 
 /* documented in header file */
-int task_params_init_str(struct task_params *task, const char *initstr) {
+int task_params_init_str(struct task_params *task, const char *initstr, int id){
   int n = -1;   /* stores the number of chars read */
   struct task_section *sect;    /* the section currently being parsed */
 
+  task->id = id;
   task_params_init(task);
 
   sscanf(initstr, " T=%u,D=%u,pr=%u,[%n",
@@ -196,19 +245,12 @@ void task_str(char *str,int len, const struct task_params *task, int verbosity){
       i;        /* loop index for iterating task sections */
 
   n = snprintf(str, len,
-      "Task <%s>:\n  T=%u ms, D=%u ms, prio=%u;",
-      task->name, task->period, task->deadline, task->priority);
+      "Task <%s>:\n  T=%u ms, D=%u ms, prio=%u, %u section[s];",
+      task->name, task->period, task->deadline, task->priority,
+      task->sections_count);
   len -= n; str += n; assert(len > 0);
 
   if (verbosity >= 1) {
-    n = snprintf(str, len,
-        "\n  active=%d, quit=%d, done=%d, dmiss=%d, count=%lu, %u section[s];",
-        task->activated,task->quit,task->done,task->dmiss, task->counters.tot,
-        task->sections_count);
-    len -= n; str += n; assert(len > 0);
-  }
-
-  if (verbosity >= 2) {
     for (i = 0; i < task->sections_count; i++) {
       n = snprintf(str, len,
           "\n  (R%u,avg=%lu,dev=%lu)",
@@ -216,11 +258,18 @@ void task_str(char *str,int len, const struct task_params *task, int verbosity){
       len -= n; str += n; assert(len > 0);
     }
   }
+
+  if (verbosity >= 2) {
+    n = snprintf(str, len,
+        "\n  active=%d, quit=%d, done=%d, dmiss=%d, jobs=%d",
+        task->activated,task->quit,task->done,task->dmiss, task->jobs);
+    len -= n; str += n; assert(len > 0);
+  }
 }
 
 
 /* handle errors that may happen in task_create */
-#define handle_error_en(en, fname, tname) \
+#define handle_error(en, fname, tname) \
   do { \
     printf_log_perror(LOG_WARNING, en, \
         "Couldn't start `%s`: Got an error while calling function %s: ", \
@@ -228,8 +277,8 @@ void task_str(char *str,int len, const struct task_params *task, int verbosity){
     return; \
   } while (0)
 
-#define handle_error_en_clean(en, fname, tname) \
-  do { pthread_attr_destroy(&tattr); handle_error_en(en, fname, tname); \
+#define handle_error_clean(en, fname, tname) \
+  do { pthread_attr_destroy(&tattr); handle_error(en, fname, tname); \
   } while (0)
 
 
@@ -255,36 +304,55 @@ void task_create(struct task_params *task) {
   sem_init(&task->activation_sem, 0, 0);
 
   s = pthread_attr_init(&tattr);
-  if (s) handle_error_en(s, "pthread_attr_init", task->name);
+  if (s) handle_error(s, "pthread_attr_init", task->name);
 
-  s = pthread_attr_setdetachstate(&tattr, PTHREAD_CREATE_DETACHED);
-  if (s) handle_error_en_clean(s, "pthread_attr_setdetachstate", task->name);
+  // s = pthread_attr_setdetachstate(&tattr, PTHREAD_CREATE_DETACHED);
+  s = pthread_attr_setdetachstate(&tattr, PTHREAD_CREATE_JOINABLE);
+  if (s) handle_error_clean(s, "pthread_attr_setdetachstate", task->name);
 
   s = pthread_attr_setinheritsched(&tattr, PTHREAD_EXPLICIT_SCHED);
-  if (s) handle_error_en_clean(s, "pthread_attr_setinheritsched", task->name);
+  if (s) handle_error_clean(s, "pthread_attr_setinheritsched", task->name);
 
   s = pthread_attr_setschedpolicy(&tattr, TASK_SCHED_POLICY);
-  if (s) handle_error_en_clean(s, "pthread_attr_setschedpolicy", task->name);
+  if (s) handle_error_clean(s, "pthread_attr_setschedpolicy", task->name);
 
   s = pthread_attr_getschedpolicy(&tattr, &policy);
-  if (s) handle_error_en_clean(s, "pthread_attr_getschedpolicy", task->name);
+  if (s) handle_error_clean(s, "pthread_attr_getschedpolicy", task->name);
   printf_log(LOG_DEBUG, "Priorities shall be in the range [%d,%d] (using %s)\n",
       sched_get_priority_min(policy), sched_get_priority_max(policy),
       get_sched_policy_string(policy));
 
   sched_param.sched_priority = task->priority;
   s = pthread_attr_setschedparam(&tattr, &sched_param);
-  if (s) handle_error_en_clean(s, "pthread_attr_setschedparam", task->name);
+  if (s) handle_error_clean(s, "pthread_attr_setschedparam", task->name);
   
+  if (options.with_affinity) {
+    assert(CPU_COUNT(&options.task_cpuset) == 1);
+    s = pthread_attr_setaffinity_np(
+        &tattr, sizeof(cpu_set_t), &options.task_cpuset);
+    if (s) handle_error_clean(s, "pthread_attr_setaffinity_np", task->name);
+  }
+
   s = pthread_create(&task->tid, &tattr, task_function, task);
-  if (s) handle_error_en_clean(s, "pthread_create", task->name);
+  if (s) handle_error_clean(s, "pthread_create", task->name);
 
   pthread_attr_destroy(&tattr);
 }
-#undef handle_error_en
+#undef handle_error
+#undef handle_error_clean
 
 
 /* documented in header file */
 void task_activate(struct task_params *task) {
   sem_post(&task->activation_sem);
+}
+
+
+/* documented in header file */
+void task_join(struct task_params *task) {
+  int s;
+
+  s = pthread_join(task->tid, NULL);
+  if (s) printf_log_perror(LOG_WARNING, s,
+      "Error calling pthread_join for <%s>: ", task->name);
 }

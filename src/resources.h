@@ -15,11 +15,10 @@
  */
 
 /**
- * This module deals with the [fake] resources managed by the observed tasks,
- * and the counters that represent the execution while operating on each.
+ * This module deals with the [fake] resources managed by the tasks.
  *
  * Resource 0 is a special resource indicating "no resource",  but in
- * the API and counters it is treated just like others.
+ * the API it is treated just like others.
  *
  * Function names should be self-explaining, most of them are couple of lines.
  *
@@ -43,16 +42,6 @@ struct resource_set {
   pthread_mutex_t locks[MAX_RESOURCES - 1];
 };
 
-struct counter_set {
-  // int len;      /* Number of resources */
-                                                /* Counters incremented on: */
-  unsigned long sections;                       /* - enter new section */
-  unsigned long acquirements[MAX_RESOURCES];    /* - acquire resource r */
-  unsigned long operations[MAX_RESOURCES];      /* - operate on resource r */
-  unsigned long releases[MAX_RESOURCES];        /* - release resource r */
-  unsigned long tot;                            /* - any of the previous */
-};
-
 
 /** Initialize the struct for using with the `update` function */
 void resources_init(struct resource_set *resources);
@@ -71,19 +60,5 @@ void resources_locks_free(struct resource_set *resources);
 void resource_acquire(struct resource_set *resources, int r);
 
 void resource_release(struct resource_set *resources, int r);
-
-
-void counter_set_init(struct counter_set *counters);
-
-void counter_set_cp(
-    const struct counter_set *src, struct counter_set *dst, int len);
-
-/** performs `a += b`  element-by-element */
-void counter_set_increment(
-    struct counter_set *a, const struct counter_set *b, int len);
-
-/** performs `a -= b`  element-by-element */
-void counter_set_decrement(
-    struct counter_set *a, const struct counter_set *b, int len);
 
 #endif

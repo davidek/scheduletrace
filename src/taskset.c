@@ -45,7 +45,18 @@ static void resources_setup_from_tasks(struct taskset *ts) {
 }
 
 void taskset_init(struct taskset *ts) {
+  int s;
+
   ts->tasks_count = 0;
+  ts->tick = 1UL;
+  trace_init(&ts->trace);
+
+  s = sem_init(&ts->task_lock, 0, 1);
+  if (s < 0) {
+    printf_log_perror(LOG_ERROR, errno,
+        "Error calling sem_init for task_lock: ");
+    exit(1);
+  }
 }
 
 int taskset_init_file(struct taskset* ts) {
@@ -56,25 +67,25 @@ int taskset_init_file(struct taskset* ts) {
 
   taskset_init(ts);
 
-  while ((read = getline(&line, &len, options.infile)) != -1
+  while ((read = getline(&line, &len, options.taskfile)) != -1
       && ts->tasks_count < MAX_TASKSET_SIZE)
   {
     if (read == 0 || line[0] == '#' || line[0] == '\n')
       continue;
 
-    s = task_params_init_str(&ts->tasks[ts->tasks_count], line);
+    s = task_params_init_str(&ts->tasks[ts->tasks_count], line, ts->tasks_count);
     if (s) {
       printf_log(LOG_WARNING,
           "Task parsing was unsuccessful, skipping task definition.\n");
     }
     else {
-      ts->tasks[ts->tasks_count].resources = &ts->resources;
+      ts->tasks[ts->tasks_count].ts = ts;
       ts->tasks_count ++;
     }
   }
 
   if (line) free(line);
-  fclose(options.infile);
+  fclose(options.taskfile);
 
   if (read != -1) {
     printf_log(LOG_WARNING,
@@ -100,6 +111,16 @@ int taskset_create(struct taskset *ts) {
 void taskset_activate(struct taskset *ts) {
   int i;
 
+  ts->next_evt = trace_next(&ts->trace);
+  ts->next_evt->type = EVT_RUN;
+  ts->next_evt->task = -1;
+  ts->next_evt->res = 0;
+  ts->next_evt->count = 1;
+  ts->next_evt->tick = 1;
+  clock_gettime(CLOCK_MONOTONIC, &ts->next_evt->time);
+
+  clock_gettime(CLOCK_MONOTONIC, &ts->t0);
+
   for (i = 0; i < ts->tasks_count; i++) {
     task_activate(&ts->tasks[i]);
   }
@@ -121,5 +142,13 @@ void taskset_quit(struct taskset *ts) {
 
   for (i = 0; i < ts->tasks_count; i++) {
     ts->tasks[i].quit = true;
+  }
+}
+
+void taskset_join(struct taskset *ts) {
+  int i;
+
+  for (i = 0; i < ts->tasks_count; i++) {
+    task_join(&ts->tasks[i]);
   }
 }

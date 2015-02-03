@@ -105,9 +105,9 @@ void resources_update(struct resource_set *resources, int r, int prio) {
 void resources_locks_init(struct resource_set *resources) {
   int r;
 
-  printf_log(LOG_INFO, "Initializing locks for resources.\n");
+  printf_log(LOG_INFO, "Initializing locks for resources:\n");
   for (r = 1;  r < resources->len; r++) {
-    printf_log(LOG_DEBUG, "  Resource R%d with priority ceiling %d;\n",
+    printf_log(LOG_INFO, "  Resource R%d with priority ceiling %d;\n",
         r, resources->prioceilings[r-1]);
     lock_init(&resources->locks[r-1], resources->prioceilings[r-1]);
   }
@@ -141,48 +141,5 @@ void resource_release(struct resource_set *resources, int r) {
     s = pthread_mutex_unlock(&resources->locks[r-1]);
     if (s)
       printf_log_perror(LOG_WARNING, s, "Error in pthread_mutex_unlock: ");
-  }
-}
-
-void counter_set_init(struct counter_set *counters) {
-  memset(counters, 0, sizeof(struct counter_set));
-}
-
-void counter_set_cp(
-    const struct counter_set *src, struct counter_set *dst, int len) {
-  int r;
-
-  dst->sections = src->sections;
-  dst->tot = src->tot;
-  for (r = 0; r < len; r++) {
-    dst->acquirements[r] = src->acquirements[r];
-    dst->operations[r] = src->operations[r];
-    dst->releases[r] = src->releases[r];
-  }
-}
-
-void counter_set_increment(
-    struct counter_set *a, const struct counter_set *b, int len) {
-  int r;
-
-  a->sections += b->sections;
-  a->tot += b->tot;
-  for (r = 0; r < len; r++) {
-    a->acquirements[r] += b->acquirements[r];
-    a->operations[r] += b->operations[r];
-    a->releases[r] += b->releases[r];
-  }
-}
-
-void counter_set_decrement(
-    struct counter_set *a, const struct counter_set *b, int len) {
-  int r;
-
-  a->sections -= b->sections;
-  a->tot -= b->tot;
-  for (r = 0; r < len; r++) {
-    a->acquirements[r] -= b->acquirements[r];
-    a->operations[r] -= b->operations[r];
-    a->releases[r] -= b->releases[r];
   }
 }

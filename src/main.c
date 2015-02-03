@@ -26,6 +26,7 @@
 #include <getopt.h>
 #include <assert.h>
 #include <semaphore.h>
+#include <sched.h>
 
 #include <allegro.h>
 
@@ -37,23 +38,36 @@
 /** Print the command line help */
 void help(const char* cmd_name) {
   printf("\
-Usage: %s [options]\n\
+Usage: %s [OPTION]...\n\
 Runs some threads and displays their schedule.\n\
 \n\
+Mandatory arguments to long options are mandatory for short options too.\n\
   -h, --help            Display this help and exit.\n\
 \n\
   -v, --verbose         Verbose output. Useful for debugging purposes.\n\
   -q, --quiet           Quiet mode: will only log warnings and fatal errors.\n\
 \n\
-  -f, --file=FILE       Read task definition from FILE rather than from stdin.\n\
-      --no-logfile-sync\n\
-                        Disable synchronization of logging statements \n\
+  -g, --no-gui          Don't start the GUI.\n\
+  -f, --taskfile=FILE   Read task definition from FILE (default or \"-\": stdin).\n\
+  -t, --tracefile=FILE  Output trace to FILE (default or \"-\": stdout).\n\
+      --no-trace        Disable output of the trace.\n\
+      --no-log-sync     Disable synchronization of logging statements \n\
                         (otherways enabled by default).\n\
-                        When disabled, the output may turn into a mess.\n\
+                        When disabled, the output might turn into a mess.\n\
+      --no-affinity     Don't set the CPU affinity of the running tasks.\n\
+                        By default, tasks are forced to run on a single\n\
+                        processor (the first available is chosen): this flag\n\
+                        inhibits this constraint. Beware that this may result\n\
+                        in drastically different behaviours on multi-processor\n\
+                        environments.\n\
 \n\
 ", cmd_name);
 
 /*
+  -r, --run=SEC         Start taskset immediately, then stop it after (approxi-\n\
+                        matively) SEC seconds.\n\
+                        Expecially useful when --no-gui is selected.\n\
+\n\
       --with-global-lock\n\
                         Enable a global lock for every operation by observed\n\
                         and observer threads (default disabled).\n\
@@ -69,7 +83,9 @@ void see_help(const char* cmd_name) {
 }
 
 /* #define WITH_GLOBAL_LOCK        256 */
-#define NO_LOGFILE_SYNC         257
+#define NO_LOG_SYNC     257
+#define NO_TRACE        258
+#define NO_AFFINITY     259
 
 /** Populate options struct, parsing the command line arguments. */
 void options_init(int argc, char **argv) {
@@ -79,26 +95,34 @@ void options_init(int argc, char **argv) {
     {"help", no_argument, NULL, 'h'},
     {"verbose", no_argument, NULL, 'v' },
     {"quiet", no_argument, NULL, 'q' },
-    {"file", required_argument, NULL, 'f'},
+    {"no-gui", no_argument, NULL, 'g' },
+    {"taskfile", required_argument, NULL, 'f'},
+    {"tracefile", required_argument, NULL, 't'},
+    {"no-trace", no_argument, NULL, NO_TRACE},
+    {"no-log-sync", no_argument, NULL, NO_LOG_SYNC},
+    {"no-affinity", no_argument, NULL, NO_AFFINITY},
     /* {"with-global-lock", no_argument, NULL, WITH_GLOBAL_LOCK}, */
-    {"no-logfile-sync", no_argument, NULL, NO_LOGFILE_SYNC},
     {NULL, 0, NULL, 0}
   };
 
   /* Initialize option to defaults */
   options.help = false;
   options.verbosity = LOG_INFO;
+  options.with_gui = true;
   options.logfile = stderr;
   options.logfile_sync = true;
-  options.infile_name = "-";
-  options.infile = stdin;
-  options.tick = 0UL;
+  options.taskfile_name = "-";
+  options.taskfile = stdin;
+  options.tracefile_name = "-";
+  options.tracefile = stdout;
+  options.with_affinity = true;
+  CPU_ZERO(&options.task_cpuset);
   /* options.with_global_lock = false; */
 
   /* Parse command line */
   while (true) {
     int option_index = 0;
-    c = getopt_long(argc, argv, "hvqf:", long_options, &option_index);
+    c = getopt_long(argc, argv, "hvqgf:t:", long_options, &option_index);
     if (c == -1)
       break;
     switch (c) {
@@ -111,15 +135,29 @@ void options_init(int argc, char **argv) {
       case 'q':
         options.verbosity = LOG_WARNING;
         break;
+      case 'g':
+        options.with_gui = false;
+        break;
       case 'f':
         assert(optarg != NULL);
-        options.infile_name = optarg;
+        options.taskfile_name = optarg;
+        break;
+      case 't':
+        assert(optarg != NULL);
+        options.tracefile_name = optarg;
         break;
       /*case WITH_GLOBAL_LOCK:
         options.with_global_lock = true;
         break;*/
-      case NO_LOGFILE_SYNC:
+      case NO_TRACE:
+        options.tracefile_name = NULL;
+        options.tracefile = NULL;
+        break;
+      case NO_LOG_SYNC:
         options.logfile_sync = false;
+        break;
+      case NO_AFFINITY:
+        options.with_affinity = false;
         break;
       case '?':
         /* getopt_long already printed an error message. */
@@ -129,6 +167,10 @@ void options_init(int argc, char **argv) {
       default:
         abort();
     }
+  }
+
+  if (options.help) {
+    return;  /* skip other initialization procedures */
   }
 
   if (options.logfile_sync) {
@@ -147,20 +189,52 @@ void options_init(int argc, char **argv) {
   /*if (options.with_global_lock) {
      printf_log(LOG_INFO, "Using global lock...\n");
   }*/
-  s = sem_init(&options.task_lock, 0, 1);
-  if (s < 0) {
-    printf_log_perror(LOG_ERROR, errno,
-        "Error calling sem_init for task_lock: ");
-    exit(1);
-  }
 
-  if (strcmp(options.infile_name, "-") != 0) {
-    options.infile = fopen(options.infile_name, "r");
-    if (options.infile == NULL) {
+  if (strcmp(options.taskfile_name, "-") != 0) {
+    options.taskfile = fopen(options.taskfile_name, "r");
+    if (options.taskfile == NULL) {
       printf_log_perror(LOG_ERROR, errno, "Error while opening file \"%s\": ",
-          options.infile_name);
+          options.taskfile_name);
       exit(1);
     }
+  }
+
+  if (options.tracefile_name != NULL
+      && strcmp(options.tracefile_name, "-") != 0)
+  {
+    options.tracefile = fopen(options.tracefile_name, "a");
+    if (options.tracefile == NULL) {
+      printf_log_perror(LOG_ERROR, errno, "Error while opening file \"%s\": ",
+          options.tracefile_name);
+      exit(1);
+    }
+  }
+  if (options.tracefile != NULL) {
+    s = fprintf(options.tracefile, "== Beginning of scheduletrace TRACE ==\n");
+    assert(s >= 0);
+  }
+
+  if (options.with_affinity) {
+    int cpuid;
+    cpu_set_t cpuset;
+
+    s = sched_getaffinity(getpid(), sizeof(cpu_set_t), &cpuset);
+    if (s < 0) {
+      printf_log_perror(LOG_ERROR, errno,"sched_getaffinity returned error: ");
+      exit(1);
+    }
+    printf_log(LOG_DEBUG, "Process has %d CPUs available:\n",
+        CPU_COUNT(&cpuset), cpuset);
+    for (cpuid = 0; cpuid < CPU_SETSIZE; cpuid++) {
+      if (CPU_ISSET(cpuid, &cpuset))
+        printf_log(LOG_DEBUG, "  CPU %d\n", cpuid);
+    }
+    for (cpuid = 0; cpuid < CPU_SETSIZE; cpuid++) {
+      if (CPU_ISSET(cpuid, &cpuset)) break;
+    }
+    CPU_SET(cpuid, &options.task_cpuset);
+    assert(CPU_COUNT(&options.task_cpuset) == 1);
+    printf_log(LOG_DEBUG, "Tasks will run on CPU %d\n", cpuid);
   }
 }
 
@@ -185,19 +259,25 @@ int main(int argc, char **argv) {
 
   printf_log(LOG_INFO, "Starting scheduletrace...\n");
 
-  graphics_init();
-
   taskset_init_file(&ts);
   taskset_print(&ts);
   taskset_create(&ts);
   
   printf_log(LOG_INFO, "Taskset successfully initialized!\n");
 
-  taskset_activate(&ts);
-  
-  sleep(1);
-  printf_log(LOG_INFO, "Quitting tasks!\n");
-  taskset_quit(&ts);
+  if (options.with_gui) {
+    graphics_init();
+  }
+  else {
+    printf_log(LOG_INFO, "GUI _not_ started upon user request.\n");
+
+    taskset_activate(&ts);
+
+    sleep(1);
+    printf_log(LOG_INFO, "Quitting tasks!\n");
+    taskset_quit(&ts);
+    taskset_join(&ts);
+  }
 
   printf_log(LOG_INFO, "Exiting scheduletrace.\n");
   exit(0);

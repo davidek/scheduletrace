@@ -13,6 +13,9 @@ di Studi e Perfezionamento (Pisa, Italy).
 Compiling
 ---------
 
+This is written in C99 and heavily relies on linux-only libraries. Thus, if
+you're missing linux or a C99 compiler, install them or give up.
+
 If you have SCons installed, simply cd to the project root and run
 
     scons

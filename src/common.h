@@ -29,6 +29,7 @@
 #include <semaphore.h>
 #include <assert.h>
 #include <errno.h>
+#include <sched.h>
 
 enum loglevel {LOG_ERROR=-1, LOG_WARNING=0, LOG_INFO=1, LOG_DEBUG=2};
 
@@ -81,14 +82,17 @@ void printf_log_nosync(enum loglevel level, int e, const char *fmt, ...);
 struct options {
   bool          help;           /* the --help flag */
   enum loglevel verbosity;
+  bool          with_gui;
   FILE*         logfile;
   bool          logfile_sync;   /* Whether to use atomic writes to logfile */
-  sem_t         logfile_sem;    /* To implement atomic writes to logfile */
-  char*         infile_name;
-  FILE*         infile;
+  sem_t         logfile_sem;    /* For implementing atomic writes to logfile */
+  char*         taskfile_name;
+  FILE*         taskfile;
   /* bool          with_global_lock;       / * if --with-global-lock */
-  sem_t         task_lock;
-  unsigned long tick;
+  char*         tracefile_name;  
+  FILE*         tracefile;
+  bool          with_affinity;  /* Whether to set tasks cpu affinity */
+  cpu_set_t     task_cpuset;    /* The 1-sized cpuset to be used by tasks */
 };
 
 extern struct options options;

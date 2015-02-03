@@ -38,9 +38,16 @@ static inline int next(int i) {
 }
 
 static void trace_evt_print(struct trace_evt *evt) {
-  fprintf(stdout, "TRACE: [%lld.%.9ld] %s task=%d R%d \n",
-      (long long) evt->time.tv_sec, evt->time.tv_nsec,
-      evt_string(evt->type), evt->task, evt->res);
+  if (options.tracefile != NULL)
+    fprintf(options.tracefile,
+        "TRACE: [%lld.%.9ld][tick=%lu] %s task=%d R%d (x%u)\n",
+        (long long) evt->time.tv_sec, evt->time.tv_nsec, evt->tick,
+        evt_string(evt->type), evt->task, evt->res, evt->count);
+
+  printf_log(LOG_DEBUG,
+      "TRACE: [%lld.%.9ld][tick=%lu] %s task=%d R%d (x%u)\n",
+      (long long) evt->time.tv_sec, evt->time.tv_nsec, evt->tick,
+      evt_string(evt->type), evt->task, evt->res, evt->count);
 }
 
 void trace_init(struct trace *tr) {
