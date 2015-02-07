@@ -124,6 +124,8 @@ static void task_body(struct task_params *task) {
     tick_pp(task, r, EVT_RELEASE);
     run_assert(0 == sem_post(&task->ts->task_lock));
   }
+
+  task->jobs ++;
 }
 
 

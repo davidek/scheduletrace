@@ -49,6 +49,8 @@ void taskset_init(struct taskset *ts) {
 
   ts->tasks_count = 0;
   ts->tick = 1UL;
+  ts->activated = false;
+  ts->stopped = false;
   trace_init(&ts->trace);
 
   s = sem_init(&ts->task_lock, 0, 1);
@@ -111,6 +113,7 @@ int taskset_create(struct taskset *ts) {
 void taskset_activate(struct taskset *ts) {
   int i;
 
+  ts->activated = true;
   ts->next_evt = trace_next(&ts->trace);
   ts->next_evt->type = EVT_RUN;
   ts->next_evt->task = -1;
@@ -140,6 +143,7 @@ void taskset_print(const struct taskset *ts) {
 void taskset_quit(struct taskset *ts) {
   int i;
 
+  ts->stopped = true;
   for (i = 0; i < ts->tasks_count; i++) {
     ts->tasks[i].quit = true;
   }
@@ -152,3 +156,4 @@ void taskset_join(struct taskset *ts) {
     task_join(&ts->tasks[i]);
   }
 }
+

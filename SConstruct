@@ -1,7 +1,7 @@
 
 DEBUG = True
 
-src_files = Glob('src/**.c')
+src_files = Glob('src/*.c') + Glob('src/*/*.c')
 
 env = Environment()
 env.Append(CCFLAGS=['-std=c99', '-D_GNU_SOURCE'])

@@ -21,18 +21,18 @@
  * and triggers all the required threads to start, using their respective APIs.
  */
 
+#include <stdlib.h>
 #include <stdio.h>
+#include <assert.h>
+#include <string.h>
 #include <unistd.h>
 #include <getopt.h>
-#include <assert.h>
 #include <semaphore.h>
 #include <sched.h>
 
-#include <allegro.h>
-
 #include "common.h"
-#include "task.h"
 #include "taskset.h"
+#include "gui.h"
 
 
 /** Print the command line help */
@@ -60,6 +60,9 @@ Mandatory arguments to long options are mandatory for short options too.\n\
                         inhibits this constraint. Beware that this may result\n\
                         in drastically different behaviours on multi-processor\n\
                         environments.\n\
+\n\
+  -W, --width=NUM       Set window width to NUM.\n\
+  -H, --height=NUM      Set window height to NUM.\n\
 \n\
 ", cmd_name);
 
@@ -91,6 +94,7 @@ void see_help(const char* cmd_name) {
 void options_init(int argc, char **argv) {
   int s;        /* return value of library functions */
   int c;        /* the parsed option in the parsing loop */
+  char short_options[] = "hvqgf:t:W:H:";
   struct option long_options[] = {
     {"help", no_argument, NULL, 'h'},
     {"verbose", no_argument, NULL, 'v' },
@@ -101,6 +105,8 @@ void options_init(int argc, char **argv) {
     {"no-trace", no_argument, NULL, NO_TRACE},
     {"no-log-sync", no_argument, NULL, NO_LOG_SYNC},
     {"no-affinity", no_argument, NULL, NO_AFFINITY},
+    {"width", required_argument, NULL, 'W'},
+    {"height", required_argument, NULL, 'H'},
     /* {"with-global-lock", no_argument, NULL, WITH_GLOBAL_LOCK}, */
     {NULL, 0, NULL, 0}
   };
@@ -117,12 +123,14 @@ void options_init(int argc, char **argv) {
   options.tracefile = stdout;
   options.with_affinity = true;
   CPU_ZERO(&options.task_cpuset);
+  options.gui_w = GUI_DEFAULT_W;
+  options.gui_h = GUI_DEFAULT_H;
   /* options.with_global_lock = false; */
 
   /* Parse command line */
   while (true) {
     int option_index = 0;
-    c = getopt_long(argc, argv, "hvqgf:t:", long_options, &option_index);
+    c = getopt_long(argc, argv, short_options, long_options, &option_index);
     if (c == -1)
       break;
     switch (c) {
@@ -158,6 +166,22 @@ void options_init(int argc, char **argv) {
         break;
       case NO_AFFINITY:
         options.with_affinity = false;
+        break;
+      case 'W':
+        assert(optarg != NULL);
+        s = sscanf(optarg, "%d", &options.gui_w);
+        if (s < 1) {
+          printf("Invalid value for width (not an integer): %s", optarg);
+          abort();
+        }
+        break;
+      case 'H':
+        assert(optarg != NULL);
+        s = sscanf(optarg, "%d", &options.gui_h);
+        if (s < 1) {
+          printf("Invalid value for height (not an integer): %s", optarg);
+          abort();
+        }
         break;
       case '?':
         /* getopt_long already printed an error message. */
@@ -239,14 +263,6 @@ void options_init(int argc, char **argv) {
 }
 
 
-/** Fully initialize the graphics library and start the GUI threads */
-void graphics_init() {
-  allegro_init();
-
-  set_gfx_mode(GFX_AUTODETECT_WINDOWED, 640, 480, 0, 0);
-}
-
-
 int main(int argc, char **argv) {
   struct taskset ts;
 
@@ -259,14 +275,19 @@ int main(int argc, char **argv) {
 
   printf_log(LOG_INFO, "Starting scheduletrace...\n");
 
+  if (strcmp(options.taskfile_name, "-") == 0) {
+    printf_log(LOG_INFO, "Will read taskset description from STDIN.\n");
+  }
+
   taskset_init_file(&ts);
   taskset_print(&ts);
   taskset_create(&ts);
-  
+
   printf_log(LOG_INFO, "Taskset successfully initialized!\n");
 
   if (options.with_gui) {
-    graphics_init();
+    printf_log(LOG_INFO, "Starting GUI\n");
+    gui_run(&ts);
   }
   else {
     printf_log(LOG_INFO, "GUI _not_ started upon user request.\n");
@@ -281,4 +302,5 @@ int main(int argc, char **argv) {
 
   printf_log(LOG_INFO, "Exiting scheduletrace.\n");
   exit(0);
+  //pthread_exit(NULL);
 }

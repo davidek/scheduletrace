@@ -51,6 +51,9 @@ struct taskset {
   struct trace trace;   /* the event trace */
   struct trace_evt *next_evt;   /* the next event, to be added when ready */
 
+  bool activated;       /* whether the taskset has been activated */
+  bool stopped;         /* whether the taskset has been instructed to quit */
+
   struct timespec t0;   /* time when taskset_activate is called */
 };
 

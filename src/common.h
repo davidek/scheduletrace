@@ -93,6 +93,9 @@ struct options {
   FILE*         tracefile;
   bool          with_affinity;  /* Whether to set tasks cpu affinity */
   cpu_set_t     task_cpuset;    /* The 1-sized cpuset to be used by tasks */
+
+  int           gui_w;          /* Width of the GUI window */
+  int           gui_h;          /* Height of the GUI window */
 };
 
 extern struct options options;
