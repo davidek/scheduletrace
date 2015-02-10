@@ -26,32 +26,35 @@
 #include "../gui.h"
 
 
-#define GUI_DEFAULT_ZOOM 20.0
+#define GUI_DEFAULT_ZOOM (50.0 / 1000)  /* px/ms */
+#define GUI_PAN 50  /* px */
 
 struct guictx {
   struct taskset *ts;   /* the observed taskset */
   pthread_t tid;        /* tid of the gui thread */
   volatile bool exit;   /* set to true to instruct main loop to exit */
   unsigned long dmiss;  /* counts deadline misses in the gui task */
-  double zoom;          /* current zoom level [px/s] */
+  double scale;         /* current zoom level [px/ms] */
+  long disp_zero;       /* time of the beginning of the time axis [ms start] */
 };
 
 
 /**
  * Asynchronously checks if there is any pending user input and takes action.
  */
-void get_user_input(struct guictx *ctx);
+void get_user_input(struct guictx *ctx);  /* input.c */
 
 
 /**
  * Display the input help message on the given bitmap.
  */
-void display_help(BITMAP *help_area);
+void display_help(BITMAP *help_area);  /* input.c */
 
 
 /**
- * Display the taskset in the given bitmap.
+ * Display the execution trace in the given bitmap.
  */
-void display_taskset(struct guictx *ctx, BITMAP *main_area);
+void display_trace(struct guictx *ctx, BITMAP *main_area);  /* trace.c */
+
 
 #endif

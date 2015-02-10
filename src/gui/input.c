@@ -37,10 +37,29 @@ void get_user_input(struct guictx *ctx) {
   if (keypressed()) {
     get_keycodes(&scan, &ascii);
 
+    /* QUIT */
     if (scan == KEY_ESC || scan == KEY_Q) {
       printf_log(LOG_INFO, "Quitting gui...\n");
       ctx->exit = true;
     }
+    /* ZOOM and PAN */
+    else if (ascii == '+' || scan == KEY_UP || scan == KEY_P) {
+      ctx->scale *= 2.0;
+      printf_log(LOG_DEBUG, "Zoom in: scale now %lf px/ms\n", ctx->scale);
+    }
+    else if (ascii == '-' || scan == KEY_DOWN || scan == KEY_M) {
+      ctx->scale /= 2.0;
+      printf_log(LOG_DEBUG, "Zoom out: scale now %lf px/ms\n", ctx->scale);
+    }
+    else if (scan == KEY_LEFT) {
+      ctx->disp_zero -= GUI_PAN / ctx->scale;
+      printf_log(LOG_DEBUG, "Pan left: origin now at %d\n", ctx->disp_zero);
+    }
+    else if (scan == KEY_RIGHT) {
+      ctx->disp_zero += GUI_PAN / ctx->scale;
+      printf_log(LOG_DEBUG, "Pan right: origin now at %d\n", ctx->disp_zero);
+    }
+    /* TASKSET OPERATIONS */
     else if (scan == KEY_A) {
       if (! ctx->ts->activated) {
         printf_log(LOG_INFO, "Activating taskset...\n");
@@ -69,9 +88,10 @@ void get_user_input(struct guictx *ctx) {
 static const char help_lines[][HELP_LINE_LEN] = {
   "Useful keys:",
   " ESC Exit.",
+  " ",
   " A   Activate taskset.",
   " S   Stop taskset.",
-  "<TODO>",
+  " ",
   " ->  Scroll right",
   " <-  Scroll left",
   " +   Zoom in",

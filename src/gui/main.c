@@ -94,6 +94,7 @@ static void gui_thread_main(struct guictx *ctx) {
   while (! ctx->exit) {
     get_user_input(ctx);
 
+    display_trace(ctx, main_area);
     //s = gui_update();
     //if (s != 0) break;
 
@@ -219,7 +220,8 @@ void gui_run(struct taskset *ts) {
   ctx.exit = false;
   ctx.ts = ts;
   ctx.dmiss = 0;
-  ctx.zoom = GUI_DEFAULT_ZOOM;
+  ctx.scale = GUI_DEFAULT_ZOOM;
+  ctx.disp_zero = 0;
 
   global_ctx = &ctx;
 

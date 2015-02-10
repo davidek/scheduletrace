@@ -55,11 +55,15 @@
 void gui_run(struct taskset *ts);
 
 
-#define SPLITLINE_COL makecol(120, 120, 120)
-#define HELP_TEXT_COL makecol( 90,  90,  90)
+#define COL_RED         makecol(255,   0,   0)
+#define COL_GREEN       makecol(  0, 255,   0)
+#define COL_BLUE        makecol(  0,   0, 255)
+#define COL_BLACK       makecol(  0,   0,   0)
+#define COL_WHITE       makecol(255, 255, 255)
 
-#define COL_RED makecol(255, 0, 0)
-#define COL_GREEN makecol(0, 255, 0)
-#define COL_BLUE makecol(0, 0, 255)
+#define BG_COL          COL_BLACK
+#define SPLITLINE_COL   makecol(120, 120, 120)
+#define HELP_TEXT_COL   makecol( 90,  90,  90)
+#define TEXT_COL        makecol(200, 200, 200)
 
 #endif
