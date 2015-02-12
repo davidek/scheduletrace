@@ -35,3 +35,18 @@ For a complete list of command-line arguments see
 
     ./scheduletrace --help
 
+TODOs
+-----
+* Task/evt info on the right panel: (select task, show info of 1 task at a time)
+* Properly detect and show deadline misses
+* Double buffer trace plot?
+* View speed independent of  "passata"?
+  (perhaps not strictly needed once double buffering is implemented, but now it feels extremely silly)
+* Increased plot precision (currently 1ms, for some reasons I don't remember)
+* Differently display "acquire/release" events?
+* New "Completed" event?
+* Priority-based task lock?
+
+Authors
+-------
+Davide Kirchner  davide dot kirchner at yahoo dot it
