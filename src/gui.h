@@ -32,7 +32,7 @@
 #define GUI_DEADLINE GUI_PERIOD
 
 #ifndef GUI_THREAD_PRIORITY
-#define GUI_THREAD_PRIORITY 1
+#define GUI_THREAD_PRIORITY 2
 #endif
 
 #ifndef GUI_DEFAULT_W
@@ -58,6 +58,8 @@ void gui_run(struct taskset *ts);
 #define COL_RED         makecol(255,   0,   0)
 #define COL_GREEN       makecol(  0, 255,   0)
 #define COL_BLUE        makecol(  0,   0, 255)
+#define COL_YELLOW      makecol(255, 255,   0)
+#define COL_ORANGE      makecol(255, 100,   0)
 #define COL_BLACK       makecol(  0,   0,   0)
 #define COL_WHITE       makecol(255, 255, 255)
 
@@ -65,5 +67,7 @@ void gui_run(struct taskset *ts);
 #define SPLITLINE_COL   makecol(120, 120, 120)
 #define HELP_TEXT_COL   makecol( 90,  90,  90)
 #define TEXT_COL        makecol(200, 200, 200)
+#define ACTIVATION_COL  COL_WHITE
+#define DEADLINE_COL    COL_RED
 
 #endif

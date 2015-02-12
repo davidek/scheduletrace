@@ -33,39 +33,44 @@ const char *evt_string(int evt) {
   }
 }
 
-static inline int next(int i) {
-  return (i + 1) % TRACE_SIZE;
-}
-
 static void trace_evt_print(struct trace_evt *evt) {
-  if (options.tracefile != NULL)
+  if (options.tracefile != NULL) {
     fprintf(options.tracefile,
         "TRACE: [%lld.%.9ld][tick=%lu] %s task=%d R%d (x%u)\n",
         (long long) evt->time.tv_sec, evt->time.tv_nsec, evt->tick,
         evt_string(evt->type), evt->task, evt->res, evt->count);
 
+    if (options.tracefile_flush) fflush(options.tracefile);
+  }
+
   printf_log(LOG_DEBUG,
       "TRACE: [%lld.%.9ld][tick=%lu] %s task=%d R%d (x%u)\n",
       (long long) evt->time.tv_sec, evt->time.tv_nsec, evt->tick,
       evt_string(evt->type), evt->task, evt->res, evt->count);
+  if (options.tracefile_flush) fflush(options.logfile);
 }
 
 void trace_init(struct trace *tr) {
-  tr->first = 0;
-  tr->last = 0;
+  tr->len = 0;
+  tr->events[0].valid = false;
 }
 
 struct trace_evt *trace_next(struct trace *tr) {
-  if (next(tr->last) == tr->first) {
-    /* tr->events[tr->first].valid = false; */
-    tr->first = next(tr->first);
-  }
-  assert(next(tr->last) != tr->first);
-  return &tr->events[next(tr->last)];
+  if (tr->len + 1 < TRACE_SIZE)
+    tr->events[tr->len + 1].valid = false;
+  return &tr->events[tr->len];
 }
 
 void trace_next_add(struct trace *tr) {
-  assert(next(tr->last) != tr->first);
-  tr->last = next(tr->last);
-  trace_evt_print(&tr->events[tr->last]);
+  trace_evt_print(&tr->events[tr->len]);
+
+  if (tr->len + 1 >= TRACE_SIZE) {
+    printf_log(LOG_WARNING,
+        "Trace is full, will stop tracing. You may want to recompile with a "
+        "higher TRACE_SIZE");
+    tr->events[tr->len].valid = false;
+  }
+  else {
+    tr->len ++;
+  }
 }

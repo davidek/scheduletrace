@@ -38,43 +38,44 @@
  * If needed, saves the current trace event and creates a new one.
  * _Always_ to be called while owning the task_lock
  */
-static void tick_pp(struct task_params *task, int res, int type) {
-  struct taskset *ts = task->ts;        /* for convenience */
-
-  assert(ts->tick >= task->last_tick);
+/* Not static, shared with idle.c */
+void tick_pp(struct taskset *ts, int id, int res, int type,
+    unsigned long *last_tick)
+{
+  assert(ts->tick >= *last_tick);
   assert(ts->tick >= ts->next_evt->tick);
 
   if (/* Detected context switch or same task changed activity */
-      (task->last_tick < ts->tick)
-      || (task->last_tick == ts->tick && ts->next_evt->type != type)
+      (*last_tick < ts->tick)
+      || (*last_tick == ts->tick && ts->next_evt->type != type)
      )
   {
     printf_log(LOG_DEBUG, "Evt. (I've been asleep for %lu)\n",
-        ts->tick - task->last_tick);
-    /*printf_log(LOG_DEBUG, "TRACE: task %d ran for %lu owning R%d\n",
-        ts->next_evt->, ts->tick - ts->traced_tick, ts->curr_res);*/
+        ts->tick - *last_tick);
 
     trace_next_add(&ts->trace);
     ts->next_evt = trace_next(&ts->trace);
+    assert(! ts->next_evt->valid);
 
     ts->next_evt->type = type;
-    ts->next_evt->task = task->id;
+    ts->next_evt->task = id;
     ts->next_evt->res = res;
     ts->next_evt->count = 0;  /* will be incremented immediately */
     ts->next_evt->tick = ts->tick + 1;
     clock_gettime(CLOCK_MONOTONIC, &ts->next_evt->time);
+    ts->next_evt->valid = true;
   }
 
   ts->tick ++;
   ts->next_evt->count ++;
-  task->last_tick = task->ts->tick;
+  *last_tick = ts->tick;
 
   //printf_log(LOG_ERROR, "evt_count: %lu, evt_tick: %lu, tick: %lu\n",
   //    ts->next_evt->count, ts->next_evt->tick, ts->tick);
   assert(ts->next_evt->count > 0);
   assert(ts->next_evt->count == 1  ||  ts->next_evt->type == EVT_RUN);
   assert(ts->next_evt->count != 1  ||  ts->next_evt->tick == ts->tick);
-  assert(ts->next_evt->task == task->id);
+  assert(ts->next_evt->task == id);
   assert(ts->next_evt->type == type);
   assert(ts->next_evt->res == res);
 }
@@ -103,7 +104,7 @@ static void task_body(struct task_params *task) {
     resource_acquire(&task->ts->resources, r);
 
     run_assert(0 == sem_wait(&task->ts->task_lock));
-    tick_pp(task, r, EVT_ACQUIRE);
+    tick_pp(task->ts, task->id, r, EVT_ACQUIRE, &task->last_tick);
     run_assert(0 == sem_post(&task->ts->task_lock));
 
     printf_log(LOG_INFO,
@@ -111,9 +112,8 @@ static void task_body(struct task_params *task) {
         s, op, r, task->sections[s].avg, task->sections[s].dev);
 
     for (; op > 0; op--) {
-
       run_assert(0 == sem_wait(&task->ts->task_lock));
-      tick_pp(task, r, EVT_RUN);
+      tick_pp(task->ts, task->id, r, EVT_RUN, &task->last_tick);
       run_assert(0 == sem_post(&task->ts->task_lock));
     }
 
@@ -121,7 +121,7 @@ static void task_body(struct task_params *task) {
     resource_release(&task->ts->resources, r);
 
     run_assert(0 == sem_wait(&task->ts->task_lock));
-    tick_pp(task, r, EVT_RELEASE);
+    tick_pp(task->ts, task->id, r, EVT_RELEASE, &task->last_tick);
     run_assert(0 == sem_post(&task->ts->task_lock));
   }
 
@@ -157,7 +157,7 @@ static void task_loop(struct task_params* task) {
   task->activated = true;
   printf_log(LOG_INFO, "Activated!\n");
 
-  set_period_ms(&at, &dl, task->period, task->deadline);
+  set_period_ms(&at, &dl, task->period, task->deadline, &task->ts->t0);
 
   while (! task->quit) {
     task_body(task);
@@ -174,7 +174,7 @@ static void task_loop(struct task_params* task) {
 
 
 /* Wrapper around task_loop with a signature compatible with pthread_create */
-void *task_function(void* task) {
+static void *task_function(void* task) {
   task_loop((struct task_params*) task);
   return NULL;
 }

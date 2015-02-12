@@ -29,6 +29,7 @@
 #include <getopt.h>
 #include <semaphore.h>
 #include <sched.h>
+#include <pthread.h>
 
 #include "common.h"
 #include "taskset.h"
@@ -46,23 +47,33 @@ Mandatory arguments to long options are mandatory for short options too.\n\
 \n\
   -v, --verbose         Verbose output. Useful for debugging purposes.\n\
   -q, --quiet           Quiet mode: will only log warnings and fatal errors.\n\
-\n\
   -g, --no-gui          Don't start the GUI.\n\
   -f, --taskfile=FILE   Read task definition from FILE (default or \"-\": stdin).\n\
   -t, --tracefile=FILE  Output trace to FILE (default or \"-\": stdout).\n\
       --no-trace        Disable output of the trace.\n\
+      --trace-flush     Flush the output after writing each trace event.\n\
       --no-log-sync     Disable synchronization of logging statements \n\
                         (otherways enabled by default).\n\
                         When disabled, the output might turn into a mess.\n\
+\n\
+  -W, --width=NUM       Set window width to NUM.\n\
+  -H, --height=NUM      Set window height to NUM.\n\
+\n\
+Controlling behaviour:\n\
+  -p  --protocol=PROTO  Use the specified protocol for the mutex variables\n\
+                        that emulate shared resources.\n\
+                        PROTO can be NONE (default), INHERIT, or PROTECT.\n\
+                        See PTHREAD_MUTEXATTR_GETPROTOCOL(3P) for details.\n\
       --no-affinity     Don't set the CPU affinity of the running tasks.\n\
                         By default, tasks are forced to run on a single\n\
                         processor (the first available is chosen): this flag\n\
                         inhibits this constraint. Beware that this may result\n\
                         in drastically different behaviours on multi-processor\n\
                         environments.\n\
-\n\
-  -W, --width=NUM       Set window width to NUM.\n\
-  -H, --height=NUM      Set window height to NUM.\n\
+      --idle-yield      If set, the idle job will invoke pthread_yield() at\n\
+                        every operation.\n\
+      --idle-sleep      If set, the idle job will invoke clock_nanosleep() with\n\
+                        a 1-ns sleep time at every operation.\n\
 \n\
 ", cmd_name);
 
@@ -71,9 +82,6 @@ Mandatory arguments to long options are mandatory for short options too.\n\
                         matively) SEC seconds.\n\
                         Expecially useful when --no-gui is selected.\n\
 \n\
-      --with-global-lock\n\
-                        Enable a global lock for every operation by observed\n\
-                        and observer threads (default disabled).\n\
 */
 
 
@@ -85,16 +93,18 @@ void see_help(const char* cmd_name) {
   fprintf(stderr,"Try '%s --help' for more information.\n", cmd_name);
 }
 
-/* #define WITH_GLOBAL_LOCK        256 */
 #define NO_LOG_SYNC     257
 #define NO_TRACE        258
 #define NO_AFFINITY     259
+#define TRACE_FLUSH     260
+#define IDLE_YIELD      261
+#define IDLE_SLEEP      262
 
 /** Populate options struct, parsing the command line arguments. */
 void options_init(int argc, char **argv) {
   int s;        /* return value of library functions */
   int c;        /* the parsed option in the parsing loop */
-  char short_options[] = "hvqgf:t:W:H:";
+  char short_options[] = "hvqgf:t:W:H:p:";
   struct option long_options[] = {
     {"help", no_argument, NULL, 'h'},
     {"verbose", no_argument, NULL, 'v' },
@@ -102,12 +112,15 @@ void options_init(int argc, char **argv) {
     {"no-gui", no_argument, NULL, 'g' },
     {"taskfile", required_argument, NULL, 'f'},
     {"tracefile", required_argument, NULL, 't'},
+    {"trace-flush", no_argument, NULL, TRACE_FLUSH},
     {"no-trace", no_argument, NULL, NO_TRACE},
     {"no-log-sync", no_argument, NULL, NO_LOG_SYNC},
-    {"no-affinity", no_argument, NULL, NO_AFFINITY},
     {"width", required_argument, NULL, 'W'},
     {"height", required_argument, NULL, 'H'},
-    /* {"with-global-lock", no_argument, NULL, WITH_GLOBAL_LOCK}, */
+    {"protocol", required_argument, NULL, 'p'},
+    {"no-affinity", no_argument, NULL, NO_AFFINITY},
+    {"idle-yield", no_argument, NULL, IDLE_YIELD},
+    {"idle-sleep", no_argument, NULL, IDLE_SLEEP},
     {NULL, 0, NULL, 0}
   };
 
@@ -121,11 +134,13 @@ void options_init(int argc, char **argv) {
   options.taskfile = stdin;
   options.tracefile_name = "-";
   options.tracefile = stdout;
-  options.with_affinity = true;
-  CPU_ZERO(&options.task_cpuset);
+  options.tracefile_flush = false;
   options.gui_w = GUI_DEFAULT_W;
   options.gui_h = GUI_DEFAULT_H;
-  /* options.with_global_lock = false; */
+  options.mutex_protocol = PTHREAD_PRIO_NONE;
+  options.with_affinity = true;
+  CPU_ZERO(&options.task_cpuset);
+  options.idle_rt_sched = true;
 
   /* Parse command line */
   while (true) {
@@ -154,18 +169,15 @@ void options_init(int argc, char **argv) {
         assert(optarg != NULL);
         options.tracefile_name = optarg;
         break;
-      /*case WITH_GLOBAL_LOCK:
-        options.with_global_lock = true;
-        break;*/
       case NO_TRACE:
         options.tracefile_name = NULL;
         options.tracefile = NULL;
         break;
+      case TRACE_FLUSH:
+        options.tracefile_flush = true;
+        break;
       case NO_LOG_SYNC:
         options.logfile_sync = false;
-        break;
-      case NO_AFFINITY:
-        options.with_affinity = false;
         break;
       case 'W':
         assert(optarg != NULL);
@@ -179,9 +191,32 @@ void options_init(int argc, char **argv) {
         assert(optarg != NULL);
         s = sscanf(optarg, "%d", &options.gui_h);
         if (s < 1) {
-          printf("Invalid value for height (not an integer): %s", optarg);
+          printf("Invalid value for height (not an integer): %s\n", optarg);
           abort();
         }
+        break;
+      case 'p':
+        assert(optarg != NULL);
+        if (strcasecmp(optarg, "NONE") == 0)
+          options.mutex_protocol = PTHREAD_PRIO_NONE;
+        else if (strcasecmp(optarg, "INHERIT") == 0)
+          options.mutex_protocol = PTHREAD_PRIO_INHERIT;
+        else if (strcasecmp(optarg, "PROTECT") == 0)
+          options.mutex_protocol = PTHREAD_PRIO_PROTECT;
+        else {
+          printf("Invalid value for protocol: %s\n", optarg);
+          see_help(argv[0]);
+          abort();
+        }
+        break;
+      case NO_AFFINITY:
+        options.with_affinity = false;
+        break;
+      case IDLE_YIELD:
+        options.idle_yield = true;
+        break;
+      case IDLE_SLEEP:
+        options.idle_sleep = true;
         break;
       case '?':
         /* getopt_long already printed an error message. */
@@ -209,10 +244,6 @@ void options_init(int argc, char **argv) {
     printf_log(LOG_INFO, "Console output synchronizatio disabled: output could"
         " become messy.\n");
   }
-
-  /*if (options.with_global_lock) {
-     printf_log(LOG_INFO, "Using global lock...\n");
-  }*/
 
   if (strcmp(options.taskfile_name, "-") != 0) {
     options.taskfile = fopen(options.taskfile_name, "r");

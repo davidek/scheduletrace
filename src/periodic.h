@@ -18,10 +18,11 @@
 #define __PERIODIC_H__
 
 /**
- * Initialize absolute activation time and deadline
+ * Initialize absolute activation time and deadline.
+ * If not NULL, t0 is used as first activation in place of the current timestamp
  */
 void set_period_ms(struct timespec *at, struct timespec *dl,
-        long period, long deadline);
+        long period, long deadline, const struct timespec *t0);
 
 void set_period_ns(struct timespec *at, struct timespec *dl,
         long period, long deadline);

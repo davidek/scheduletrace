@@ -17,17 +17,14 @@
 /**
  * This module implements a data structure for holding the schedule `trace`.
  *
- * A schedule trace is simple a circular buffer of `trace_node`s, each storing
+ * A schedule trace is a simple array of `trace_node`s, each storing
  * info about a specific event.
  *
  * In order to prevent the GUI thread to slow down the observer, the trace
- * is not thread-safe: instead, it is expected that only the observer
- * inserts elements, while the GUI only reads.
+ * is not thread-safe: instead, it is expected that tasks coordinate insertions
+ * while the GUI only reads.
  *
- * This module also provides a evt_queue, with the same structure but different
- * size and operations with respect to the trace. It is intended for internal
- * use by the observer, and can be used either as a FIFO queue, or as a plain
- * array.
+ * Note that the events[len] is the "current" event, if its `valid` flag is set.
  */
 
 #ifndef __TRACE_H__
@@ -40,10 +37,6 @@
 
 #ifndef TRACE_SIZE
 #define TRACE_SIZE 10000
-#endif
-
-#ifndef EVT_QUEUE_SIZE
-#define EVT_QUEUE_SIZE 100
 #endif
 
 enum {
@@ -60,6 +53,7 @@ enum {
 const char *evt_string(int evt);
 
 struct trace_evt {
+  bool valid;   /* Whether this event has been initialized */
   int type;     /* Type of event, among the EVT_* constants defined here. */
   int task;     /* Task index. -1 for idle task. */
   int res;      /* Resource used. 0 for no resource. */
@@ -70,15 +64,8 @@ struct trace_evt {
 
 struct trace {
   struct trace_evt events[TRACE_SIZE];
-  int first;
-  int last;
+  int len;
 };
-
-/*struct evt_queue {
-  struct trace_evt events[EVT_QUEUE_SIZE];
-  int first;
-  int last;
-};*/
 
 /** Initialize the trace */
 void trace_init(struct trace *tr);

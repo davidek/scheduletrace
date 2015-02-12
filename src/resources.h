@@ -33,7 +33,7 @@
 #include <pthread.h>
 
 #ifndef MAX_RESOURCES
-#define MAX_RESOURCES 10
+#define MAX_RESOURCES 15
 #endif
 
 struct resource_set {

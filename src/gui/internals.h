@@ -26,8 +26,9 @@
 #include "../gui.h"
 
 
-#define GUI_DEFAULT_ZOOM (50.0 / 1000)  /* px/ms */
+#define GUI_DEFAULT_ZOOM (200.0 / 1000)  /* px/ms */
 #define GUI_PAN 50  /* px */
+#define GUI_MAX_TRACELINE_HEIGHT 100
 
 struct guictx {
   struct taskset *ts;   /* the observed taskset */

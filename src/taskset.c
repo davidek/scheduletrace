@@ -53,6 +53,9 @@ void taskset_init(struct taskset *ts) {
   ts->stopped = false;
   trace_init(&ts->trace);
 
+  idle_task_init(&ts->idle);
+  ts->idle.ts = ts;
+
   s = sem_init(&ts->task_lock, 0, 1);
   if (s < 0) {
     printf_log_perror(LOG_ERROR, errno,
@@ -113,7 +116,8 @@ int taskset_create(struct taskset *ts) {
 void taskset_activate(struct taskset *ts) {
   int i;
 
-  ts->activated = true;
+  clock_gettime(CLOCK_MONOTONIC, &ts->t0);
+
   ts->next_evt = trace_next(&ts->trace);
   ts->next_evt->type = EVT_RUN;
   ts->next_evt->task = -1;
@@ -121,12 +125,15 @@ void taskset_activate(struct taskset *ts) {
   ts->next_evt->count = 1;
   ts->next_evt->tick = 1;
   clock_gettime(CLOCK_MONOTONIC, &ts->next_evt->time);
+  ts->next_evt->valid = true;
 
-  clock_gettime(CLOCK_MONOTONIC, &ts->t0);
+  idle_task_create(&ts->idle);
 
   for (i = 0; i < ts->tasks_count; i++) {
     task_activate(&ts->tasks[i]);
   }
+
+  ts->activated = true;
 }
 
 void taskset_print(const struct taskset *ts) {
@@ -147,6 +154,7 @@ void taskset_quit(struct taskset *ts) {
   for (i = 0; i < ts->tasks_count; i++) {
     ts->tasks[i].quit = true;
   }
+  ts->idle.quit = true;
 }
 
 void taskset_join(struct taskset *ts) {
@@ -155,5 +163,6 @@ void taskset_join(struct taskset *ts) {
   for (i = 0; i < ts->tasks_count; i++) {
     task_join(&ts->tasks[i]);
   }
+  idle_task_join(&ts->idle);
 }
 

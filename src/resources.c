@@ -46,15 +46,17 @@ void lock_init(pthread_mutex_t *lock, int prioceiling) {
     return;
   }
 
-  /* TODO: options.mutex_protocol */
-  s = pthread_mutexattr_setprotocol(&mattr, PTHREAD_PRIO_NONE);
+  assert(options.mutex_protocol == PTHREAD_PRIO_NONE
+      || options.mutex_protocol == PTHREAD_PRIO_INHERIT
+      || options.mutex_protocol == PTHREAD_PRIO_PROTECT);
+
+  s = pthread_mutexattr_setprotocol(&mattr, options.mutex_protocol);
   if (s) {
     printf_log_perror(LOG_WARNING, s,
         "Error in lock_init while calling pthread_mutexattr_setprotocol: ");
     return;
   }
 
-  /*  TODO
   if (options.mutex_protocol == PTHREAD_PRIO_PROTECT) {
     s = pthread_mutexattr_setprioceiling(&mattr, prioceiling);
     if (s) {
@@ -63,7 +65,6 @@ void lock_init(pthread_mutex_t *lock, int prioceiling) {
       return;
     }
   }
-  */
 
   s = pthread_mutex_init(lock, &mattr);
   if (s) {

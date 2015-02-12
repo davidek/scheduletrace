@@ -89,7 +89,7 @@ static void gui_thread_main(struct guictx *ctx) {
   //taskset_quit(ctx->ts);
   //taskset_activate(ctx->ts);
 
-  set_period_ms(&at, &dl, GUI_PERIOD, GUI_DEADLINE);
+  set_period_ms(&at, &dl, GUI_PERIOD, GUI_DEADLINE, NULL);
 
   while (! ctx->exit) {
     get_user_input(ctx);

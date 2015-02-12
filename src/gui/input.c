@@ -38,7 +38,7 @@ void get_user_input(struct guictx *ctx) {
     get_keycodes(&scan, &ascii);
 
     /* QUIT */
-    if (scan == KEY_ESC || scan == KEY_Q) {
+    if (scan == KEY_ESC || scan == KEY_Q || (scan == KEY_C && ascii == 3)) {
       printf_log(LOG_INFO, "Quitting gui...\n");
       ctx->exit = true;
     }
@@ -51,13 +51,31 @@ void get_user_input(struct guictx *ctx) {
       ctx->scale /= 2.0;
       printf_log(LOG_DEBUG, "Zoom out: scale now %lf px/ms\n", ctx->scale);
     }
+    else if (ascii == '=') {
+      ctx->scale = GUI_DEFAULT_ZOOM;
+      printf_log(LOG_DEBUG, "Default zoom: scale now %lf px/ms\n", ctx->scale);
+    }
     else if (scan == KEY_LEFT) {
       ctx->disp_zero -= GUI_PAN / ctx->scale;
+      if ((int)(GUI_PAN / ctx->scale) == 0) ctx->disp_zero --;
       printf_log(LOG_DEBUG, "Pan left: origin now at %d\n", ctx->disp_zero);
     }
     else if (scan == KEY_RIGHT) {
       ctx->disp_zero += GUI_PAN / ctx->scale;
+      if ((int)(GUI_PAN / ctx->scale) == 0) ctx->disp_zero ++;
       printf_log(LOG_DEBUG, "Pan right: origin now at %d\n", ctx->disp_zero);
+    }
+    else if (scan == KEY_PGUP) {
+      ctx->disp_zero -= 5 * (GUI_PAN / ctx->scale + 1);
+      printf_log(LOG_DEBUG,"Long pan left: origin now at %d\n", ctx->disp_zero);
+    }
+    else if (scan == KEY_PGDN) {
+      ctx->disp_zero += 5 * (GUI_PAN / ctx->scale + 1);
+      printf_log(LOG_DEBUG,"Long pan right: origin now at %d\n",ctx->disp_zero);
+    }
+    else if (scan == KEY_0) {
+      ctx->disp_zero = 0;
+      printf_log(LOG_DEBUG, "Pan to zero: origin now at %d\n", ctx->disp_zero);
     }
     /* TASKSET OPERATIONS */
     else if (scan == KEY_A) {
@@ -78,6 +96,19 @@ void get_user_input(struct guictx *ctx) {
         printf_log(LOG_INFO, "Can't stop taskset: not running.\n");
       }
     }
+    else if (scan == KEY_SPACE) {
+      if (! ctx->ts->activated) {
+        printf_log(LOG_INFO, "Activating taskset...\n");
+        taskset_activate(ctx->ts);
+      }
+      else if (! ctx->ts->stopped) {
+        printf_log(LOG_INFO, "Stopping taskeset...\n");
+        taskset_quit(ctx->ts);
+      }
+      else {
+        printf_log(LOG_INFO, "Taskset has finished runing, nothing to do.\n");
+      }
+    }
   }
 }
 
@@ -87,15 +118,21 @@ void get_user_input(struct guictx *ctx) {
 
 static const char help_lines[][HELP_LINE_LEN] = {
   "Useful keys:",
-  " ESC Exit.",
+  " ESC Exit",
   " ",
-  " A   Activate taskset.",
-  " S   Stop taskset.",
+  " A   Activate taskset",
+  " S   Stop taskset",
   " ",
   " ->  Scroll right",
   " <-  Scroll left",
   " +   Zoom in",
   " -   Zoom out",
+  " 0   Go to position 0",
+  " =   Default zoom",
+  " ",
+  " PGDN  Scroll right 5x",
+  " PGUP  Scroll left  5x",
+  " SPACE Activate/Stop",
   "",
 };
 

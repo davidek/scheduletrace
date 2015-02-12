@@ -32,17 +32,19 @@
 
 #include "common.h"
 #include "resources.h"
+#include "idle.h"
 #include "task.h"
 #include "trace.h"
 
 
 #ifndef MAX_TASKSET_SIZE
-#define MAX_TASKSET_SIZE 10
+#define MAX_TASKSET_SIZE 20
 #endif
 
 struct taskset {
   int tasks_count;
   struct task_params tasks[MAX_TASKSET_SIZE];
+  struct idle_task idle;
 
   struct resource_set resources;
 

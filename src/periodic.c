@@ -15,6 +15,7 @@
 
 #include <time.h>
 
+#include "time_utils.h"
 #include "periodic.h"
 
 
@@ -27,9 +28,9 @@
 /**
  * Copy `ts` to `*td`
  */
-void time_copy(struct timespec *td, struct timespec ts) {
-  td->tv_sec = ts.tv_sec;
-  td->tv_nsec = ts.tv_nsec;
+void time_copy(struct timespec *td, const struct timespec *ts) {
+  td->tv_sec = ts->tv_sec;
+  td->tv_nsec = ts->tv_nsec;
 }
 
 /**
@@ -56,25 +57,20 @@ void time_add_ns(struct timespec *t, long ns) {
   }
 }
 
-/**
- * Compare timespec: return 0 on equality, 1 if t1 > t2, -1 if t2 < t2
- */
-int time_cmp(const struct timespec *t1, const struct timespec *t2) {
-  if (t1->tv_sec > t2->tv_sec) return 1;
-  if (t1->tv_sec < t2->tv_sec) return -1;
-  if (t1->tv_nsec > t2->tv_nsec) return 1;
-  if (t1->tv_nsec < t2->tv_nsec) return -1;
-  return 0;
-}
-
 
 void set_period_ms(struct timespec *at, struct timespec *dl,
-    long period, long deadline) {
+    long period, long deadline, const struct timespec *t0) {
   struct timespec t;
 
-  clock_gettime(CLOCK_MONOTONIC, &t);
-  time_copy(at, t);
-  time_copy(dl, t);
+  if (t0 == NULL) {
+    clock_gettime(CLOCK_MONOTONIC, &t);
+    time_copy(at, &t);
+    time_copy(dl, &t);
+  }
+  else {
+    time_copy(at, t0);
+    time_copy(dl, t0);
+  }
   time_add_ms(at, period);
   time_add_ms(dl, deadline);
 }
@@ -84,8 +80,8 @@ void set_period_ns(struct timespec *at, struct timespec *dl,
   struct timespec t;
 
   clock_gettime(CLOCK_MONOTONIC, &t);
-  time_copy(at, t);
-  time_copy(dl, t);
+  time_copy(at, &t);
+  time_copy(dl, &t);
   time_add_ns(at, period);
   time_add_ns(dl, deadline);
 }

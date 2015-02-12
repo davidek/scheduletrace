@@ -88,11 +88,16 @@ struct options {
   sem_t         logfile_sem;    /* For implementing atomic writes to logfile */
   char*         taskfile_name;
   FILE*         taskfile;
-  /* bool          with_global_lock;       / * if --with-global-lock */
   char*         tracefile_name;  
   FILE*         tracefile;
+  bool          tracefile_flush;
+
+  int           mutex_protocol; /* Protocol for shared resources' locks */
   bool          with_affinity;  /* Whether to set tasks cpu affinity */
   cpu_set_t     task_cpuset;    /* The 1-sized cpuset to be used by tasks */
+  bool          idle_yield;     /* Whether the idle task should yield() */
+  bool          idle_sleep;     /* Whether the idle task should sleep() */
+  bool          idle_rt_sched;  /* Whether the idle task is schedu */
 
   int           gui_w;          /* Width of the GUI window */
   int           gui_h;          /* Height of the GUI window */
