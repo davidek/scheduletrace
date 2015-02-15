@@ -15,7 +15,8 @@
  */
 
 /**
- *
+ * This file holds the main GUI entry point and the code to start and run
+ * the GUI thread.
  */
 
 #include <pthread.h>

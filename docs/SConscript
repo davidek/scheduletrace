@@ -1,0 +1,4 @@
+
+pdf = PDF('scheduletrace_report.tex')
+
+# vim: set filetype=python:

@@ -1,18 +1,7 @@
 
-DEBUG = True
-Export('DEBUG')
+Import('DEBUG')
 
-SConscript(dirs=['src'])
-SConscript(dirs=['docs'])
-
-Import('executable')
-Default(executable)
-
-
-comment_str = '''
-DEBUG = True
-
-src_files = Glob('src/*.c') + Glob('src/*/*.c')
+src_files = Glob('*.c') + Glob('*/*.c')
 
 env = Environment()
 env.Append(CCFLAGS=['-std=c99', '-D_GNU_SOURCE'])
@@ -28,8 +17,8 @@ else:
 
 # print env.Dump()  # verbosely displays the building environment
 
-executable = env.Program('scheduletrace', src_files)
+executable = env.Program('../scheduletrace', src_files)
 NoClean(executable)
-'''
+Export('executable')
 
 # vim: set filetype=python:

@@ -15,7 +15,7 @@
  */
 
 /**
- * This file exposes GUI-related functions which are implemented in the gui/
+ * This file exposes the GUI entry point: its implementation lives in the gui/
  * subfolder.
  */
 

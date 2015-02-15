@@ -15,8 +15,7 @@
  */
 
 /**
- * Implementation of the API in "task.h", including the utilities to handle
- * tasks and the tasks' body.
+ * Implementation of the idle task, as described in "idle.h"
  */
 
 #include <errno.h>
