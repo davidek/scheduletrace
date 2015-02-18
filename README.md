@@ -52,19 +52,19 @@ A taskset file is a simple file describing 1 task per line. Empty lines and line
 
 A task is (not strictly formally) described as follows:
 
-    TASK    ::=  T=<PERIOD>,D=<DEADLINE>,pr=<PRIORITY>,[<SECTION>*]
-    SECTION ::=  (R<RESOURCE>,avg=<OP_COUNT>,dev=<OP_COUNT_DEV>)
+    TASK    ::=  T=<PERIOD>,D=<DEADLINE>,pr=<PRIORITY>,ph=<PHASE>[<SECTION>*]
+    SECTION ::=  (R<RESOURCE>,<OP_COUNT>)
 
 - `PERIOD`: Task period in _ms_
 - `DEADLINE`: Relative deadline in _ms_
 - `PRIORITY`: Scheduling priority. Use the range [3,99], because 1 and 2 are used internally
+- `PHASE`: A positive offset for the first activation of the task.
 - `RESOURCE`: Integer id of a resource. `R0` means no resource at all. From `R1` on, they are actual resources.
 - `OP_COUNT`: Average number of operations in this section (while owning the corresponding resource)
-- `OP_COUNT_DEV`: Standard deviation of `OP_COUNT`. Currently ignored.
 
 Example:
 
-    T=1000,D=500,pr=5,[(R1,avg=800000,dev=0)(R0,avg=200000,dev=0)]
+    T=1000,D=500,pr=5,ph=100,[(R1,800000)(R0,200000)]
 
 TODOs
 -----

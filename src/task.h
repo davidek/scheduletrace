@@ -74,7 +74,7 @@ struct taskset;  /* can't include taskset before defining task_params */
 struct task_section {
   unsigned int res;     /* an id of the resource to be used, 0 for none */
   unsigned long avg;    /* average number of iterations */
-  unsigned long dev;    /* standard deviation of number of iterations */
+  /*unsigned long dev;    * standard deviation of number of iterations */
 };
 
 /**
@@ -88,6 +88,7 @@ struct task_params {
   unsigned int period;          /* in milliseconds */
   unsigned int deadline;        /* relative, in milliseconds */
   unsigned int priority;        /* in [0,99], allowed values depend on policy */
+  unsigned int phase;           /* starting _positive_ phase in milliseconds */
 
   /* Set at taskset initialization time */
   struct taskset *ts;   /* pointer to the taskset containing some shared vars */

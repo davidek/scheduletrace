@@ -20,9 +20,10 @@
 /**
  * Initialize absolute activation time and deadline.
  * If not NULL, t0 is used as first activation in place of the current timestamp
+ * If not zero, phase [ms] delays the first activation.
  */
 void set_period_ms(struct timespec *at, struct timespec *dl,
-        long period, long deadline, const struct timespec *t0);
+        long period, long deadline, const struct timespec *t0, long phase);
 
 void set_period_ns(struct timespec *at, struct timespec *dl,
         long period, long deadline);

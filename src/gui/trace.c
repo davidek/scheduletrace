@@ -117,8 +117,8 @@ static int ceildiv(int a, int b) {
   return q + !!(q * b < a);
 }
 /** return the smallest multiple of `a` grater or equal to `b` */
-static int nextmult(int a, int b) {
-  return ceildiv(b, a) * a; 
+static int nextmult(int a, int b, int phase) {
+  return ceildiv(b - phase, a) * a + phase; 
 }
 
 static void disp_timeline(struct guictx *ctx, BITMAP *area, int y, bool nums) {
@@ -157,7 +157,7 @@ static void disp_timeline(struct guictx *ctx, BITMAP *area, int y, bool nums) {
   hline(area, linestart_x, y + 1, area->w - lineend_x_roff, TEXT_COL);
 
   time_end = max_disp_time(ctx, area->w - linestart_x - lineend_x_roff);
-  for (t = nextmult(time_dist, ctx->disp_zero); t < time_end; t += time_dist) {
+  for (t = nextmult(time_dist, ctx->disp_zero, 0); t < time_end; t += time_dist) {
     x = linestart_x + (t - ctx->disp_zero) * ctx->scale;
 
     vline(area, x, y, y + TICK_LEN, TEXT_COL);
@@ -181,7 +181,7 @@ static int get_line_height(struct guictx *ctx, int tot_height) {
 }
 
 /** Return the color for the given resource */
-static int get_resource_color(int r) {
+int get_resource_color(int r) {
   RGB ret;
 
   select_palette(PLOT_PALETTE);
@@ -208,32 +208,29 @@ static void disp_evt(struct guictx *ctx, BITMAP *area,
 }
 
 /* Draw the activations and deadlines for the given task */
-// static
-void disp_at_dt(
+static void disp_at_dt(
     struct guictx *ctx, BITMAP *area, struct task_params *task, int line_height)
 {
   long time;
   int px;
 
-  for (time = nextmult(task->period, ctx->disp_zero);
+  /* Activation times */
+  for (time = nextmult(task->period, ctx->disp_zero, task->phase);
       time <= max_disp_time(ctx, area->w);  time += task->period)
   {
     px = time_to_px(ctx, area->w, time);
-
     rectfill(area,
         px, (task->id+1 + 1) * line_height - GUI_MARGIN - 1,
         px + ACT_DEADL_W - 1,
         (task->id+1 + 1) * line_height - GUI_MARGIN - 1 - ACTIVATION_H,
         ACTIVATION_COL);
-
-    px = time_to_px(ctx, area->w, time - task->period + task->deadline);
-    rectfill(area,
-        px, (task->id+1 + 1) * line_height - GUI_MARGIN - 1,
-        px + ACT_DEADL_W - 1,
-        (task->id+1 + 1) * line_height - GUI_MARGIN - 1 - DEADLINE_H,
-        DEADLINE_COL);
-
-    px = time_to_px(ctx, area->w, time + task->deadline);
+  }
+  /* Deadlines */
+  for (time = nextmult(task->period, ctx->disp_zero,
+                       task->phase + task->deadline - task->period);
+      time <= max_disp_time(ctx, area->w);  time += task->period)
+  {
+    px = time_to_px(ctx, area->w, time);
     rectfill(area,
         px, (task->id+1 + 1) * line_height - GUI_MARGIN - 1,
         px + ACT_DEADL_W - 1,

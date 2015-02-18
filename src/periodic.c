@@ -59,20 +59,21 @@ void time_add_ns(struct timespec *t, long ns) {
 
 
 void set_period_ms(struct timespec *at, struct timespec *dl,
-    long period, long deadline, const struct timespec *t0) {
+    long period, long deadline, const struct timespec *t0, long phase) {
   struct timespec t;
 
-  if (t0 == NULL) {
+  if (t0 == NULL)
     clock_gettime(CLOCK_MONOTONIC, &t);
-    time_copy(at, &t);
-    time_copy(dl, &t);
-  }
-  else {
-    time_copy(at, t0);
-    time_copy(dl, t0);
-  }
-  time_add_ms(at, period);
-  time_add_ms(dl, deadline);
+  else
+    time_copy(&t, t0);
+
+  time_add_ms(&t, phase);
+
+  time_copy(at, &t);
+  time_copy(dl, &t);
+
+  //time_add_ms(at, period);
+  time_add_ms(dl, deadline - period);
 }
 
 void set_period_ns(struct timespec *at, struct timespec *dl,

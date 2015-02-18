@@ -31,6 +31,7 @@ static void get_keycodes(char *scan, char *ascii) {
 
 void get_user_input(struct guictx *ctx) {
   char scan, ascii;
+  int task_id;
 
   if (keyboard_needs_poll()) run_assert(poll_keyboard());
 
@@ -43,11 +44,11 @@ void get_user_input(struct guictx *ctx) {
       ctx->exit = true;
     }
     /* ZOOM and PAN */
-    else if (ascii == '+' || scan == KEY_UP || scan == KEY_P) {
+    else if (ascii == '+' || scan == KEY_P) {
       ctx->scale *= 2.0;
       printf_log(LOG_DEBUG, "Zoom in: scale now %lf px/ms\n", ctx->scale);
     }
-    else if (ascii == '-' || scan == KEY_DOWN || scan == KEY_M) {
+    else if (ascii == '-' || scan == KEY_M) {
       ctx->scale /= 2.0;
       printf_log(LOG_DEBUG, "Zoom out: scale now %lf px/ms\n", ctx->scale);
     }
@@ -108,6 +109,20 @@ void get_user_input(struct guictx *ctx) {
       else {
         printf_log(LOG_INFO, "Taskset has finished runing, nothing to do.\n");
       }
+    }
+    /* SELECT TASK */
+    else if (scan == KEY_UP) {
+      task_id = (ctx->selected->id - 1) % ctx->ts->tasks_count;
+      if (task_id < 0) task_id += ctx->ts->tasks_count;
+      ctx->selected = &ctx->ts->tasks[task_id];
+    }
+    else if (scan == KEY_DOWN) {
+      task_id = (ctx->selected->id + 1) % ctx->ts->tasks_count;
+      ctx->selected = &ctx->ts->tasks[task_id];
+    }
+    /* NOT A VALID INPUT */
+    else {
+      printf_log(LOG_INFO, "Got a non-valid key: '%c'\n", ascii);
     }
   }
 }

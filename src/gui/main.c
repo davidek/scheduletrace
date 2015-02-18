@@ -90,20 +90,20 @@ static void gui_thread_main(struct guictx *ctx) {
   //taskset_quit(ctx->ts);
   //taskset_activate(ctx->ts);
 
-  set_period_ms(&at, &dl, GUI_PERIOD, GUI_DEADLINE, NULL);
+  set_period_ms(&at, &dl, GUI_PERIOD, GUI_DEADLINE, NULL, 0);
 
   while (! ctx->exit) {
-    get_user_input(ctx);
-
-    display_trace(ctx, main_area);
-    //s = gui_update();
-    //if (s != 0) break;
-
     wait_for_period_ms(&at, &dl, GUI_PERIOD);
     if (deadline_miss(&dl)) {
       ctx->dmiss ++;
       printf_log(LOG_INFO, "GUI Deadline miss! (so far: %d)\n", ctx->dmiss);
     }
+
+    get_user_input(ctx);
+    display_info(ctx, info_area);
+    display_trace(ctx, main_area);
+    //s = gui_update();
+    //if (s != 0) break;
   }
 
   if (! ctx->ts->activated) {
@@ -223,6 +223,7 @@ void gui_run(struct taskset *ts) {
   ctx.dmiss = 0;
   ctx.scale = GUI_DEFAULT_ZOOM;
   ctx.disp_zero = 0;
+  ctx.selected = &ts->tasks[0];
 
   global_ctx = &ctx;
 

@@ -70,9 +70,7 @@ void tick_pp(struct taskset *ts, int id, int res, int type,
   ts->next_evt->count ++;
   *last_tick = ts->tick;
 
-  //printf_log(LOG_ERROR, "evt_count: %lu, evt_tick: %lu, tick: %lu\n",
-  //    ts->next_evt->count, ts->next_evt->tick, ts->tick);
-  assert(ts->next_evt->count > 0);
+  assert(ts->next_evt->count > 0);  // TODO: ? sometimes fails at quitting time
   assert(ts->next_evt->count == 1  ||  ts->next_evt->type == EVT_RUN);
   assert(ts->next_evt->count != 1  ||  ts->next_evt->tick == ts->tick);
   assert(ts->next_evt->task == id);
@@ -108,8 +106,8 @@ static void task_body(struct task_params *task) {
     run_assert(0 == sem_post(&task->ts->task_lock));
 
     printf_log(LOG_INFO,
-        "Entered section %d of length %lu: (R%d,avg=%lu,dev=%lu)\n",
-        s, op, r, task->sections[s].avg, task->sections[s].dev);
+        "Entered section %d of length %lu: (R%d,%lu)\n",
+        s, op, r, task->sections[s].avg);
 
     for (; op > 0; op--) {
       run_assert(0 == sem_wait(&task->ts->task_lock));
@@ -157,16 +155,18 @@ static void task_loop(struct task_params* task) {
   task->activated = true;
   printf_log(LOG_INFO, "Activated!\n");
 
-  set_period_ms(&at, &dl, task->period, task->deadline, &task->ts->t0);
+  set_period_ms(&at, &dl, task->period, task->deadline,
+      &task->ts->t0, task->phase);
 
   while (! task->quit) {
-    task_body(task);
-
     wait_for_period_ms(&at, &dl, task->period);
     if (deadline_miss(&dl)) {
       task->dmiss ++;
       printf_log(LOG_INFO, "Deadline miss! (so far: %d)\n", task->dmiss);
     }
+
+    if (! task->quit)
+      task_body(task);
   }
 
   task->done = true;
@@ -188,6 +188,7 @@ void task_params_init(struct task_params* task) {
   task->period = DEFAULT_TASK_PERIOD;
   task->deadline = DEFAULT_TASK_DEADLINE;
   task->priority = DEFAULT_TASK_PRIORITY;
+  task->phase = 0;
 
   task->ts = NULL;
 
@@ -208,8 +209,8 @@ int task_params_init_str(struct task_params *task, const char *initstr, int id){
   task->id = id;
   task_params_init(task);
 
-  sscanf(initstr, " T=%u,D=%u,pr=%u,[%n",
-      &task->period, &task->deadline, &task->priority, &n);
+  sscanf(initstr, " T=%u,D=%u,pr=%u,ph=%u,[%n",
+      &task->period, &task->deadline, &task->priority, &task->phase, &n);
   if (n < 0) {
     printf_log(LOG_WARNING,
         "Error while parsing (first part of) task string \"%s\"", initstr);
@@ -221,8 +222,8 @@ int task_params_init_str(struct task_params *task, const char *initstr, int id){
     sect = &task->sections[task->sections_count];
     task->sections_count ++;
     n = -1;
-    sscanf(initstr, "(R%u,avg=%lu,dev=%lu)%n",
-        &sect->res, &sect->avg, &sect->dev, &n);
+    sscanf(initstr, "(R%u,%lu)%n",
+        &sect->res, &sect->avg, &n);
   }
   task->sections_count --;      /* was incremented once too much in the loop */
 
@@ -247,16 +248,16 @@ void task_str(char *str,int len, const struct task_params *task, int verbosity){
       i;        /* loop index for iterating task sections */
 
   n = snprintf(str, len,
-      "Task <%s>:\n  T=%u ms, D=%u ms, prio=%u, %u section[s];",
-      task->name, task->period, task->deadline, task->priority,
+      "Task <%s>:\n  T=%u ms, D=%u ms, prio=%u, phase=%u, %u section[s];",
+      task->name, task->period, task->deadline, task->priority, task->phase,
       task->sections_count);
   len -= n; str += n; assert(len > 0);
 
   if (verbosity >= 1) {
     for (i = 0; i < task->sections_count; i++) {
       n = snprintf(str, len,
-          "\n  (R%u,avg=%lu,dev=%lu)",
-          task->sections[i].res, task->sections[i].avg, task->sections[i].dev);
+          "\n  (R%u,%lu)",
+          task->sections[i].res, task->sections[i].avg);
       len -= n; str += n; assert(len > 0);
     }
   }

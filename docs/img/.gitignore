@@ -1,0 +1,2 @@
+# Don't ignore PDFs inside here, even if previously gitignored
+!*.pdf

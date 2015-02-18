@@ -149,11 +149,17 @@ void taskset_print(const struct taskset *ts) {
 
 void taskset_quit(struct taskset *ts) {
   int i;
+  struct timespec t;
 
   ts->stopped = true;
   for (i = 0; i < ts->tasks_count; i++) {
     ts->tasks[i].quit = true;
   }
+
+  /* Wait a bit before stopping the idle, so last event will be shown */
+  t.tv_sec = 0;
+  t.tv_nsec = 1000000;
+  clock_nanosleep(CLOCK_MONOTONIC, 0, &t, NULL);
   ts->idle.quit = true;
 }
 

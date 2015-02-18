@@ -37,6 +37,7 @@ struct guictx {
   unsigned long dmiss;  /* counts deadline misses in the gui task */
   double scale;         /* current zoom level [px/ms] */
   long disp_zero;       /* time of the beginning of the time axis [ms start] */
+  struct task_params *selected; /* currently selected task */
 };
 
 
@@ -51,6 +52,15 @@ void get_user_input(struct guictx *ctx);  /* input.c */
  */
 void display_help(BITMAP *help_area);  /* input.c */
 
+
+/**
+ * Display the execution trace in the given bitmap.
+ */
+void display_info(struct guictx *ctx, BITMAP *info_area);  /* info.c */
+
+
+/** Return the color for the given resource */
+int get_resource_color(int r);  /* trace.c */
 
 /**
  * Display the execution trace in the given bitmap.

@@ -118,7 +118,29 @@ Most of the command-line arguments deal with controlling the inputs and outputs 
 Other interesting command-line parameters are detailed in section~\ref{sec:arch} when appropriate, while the complete list of valid arguments can be obtained by running the program with the \mono{-h} or \mono{-{}-help} flag.
 
 \subsection{Interactive commands}
-Once the Graphical user interface has started, the list of available commands is displayed on screen: they include the possibility to zoom (\textit{+}/\textit{-}) and pan $\leftarrow$/$\rightarrow$ the schedule plot and, of course, the possibility to activate and stop the task set (\textit{A}/\textit{S}). \textit{Space} behaves as either \textit{A} or \textit{S}, according to the situation, while \textit{Q}, \textit{Esc} and \textit{Control-C} cause the program to exit gracefully.
+
+\begin{figure}
+  \centering
+  \includegraphics[width=.85\textwidth]{img/gui.png}
+  \caption{\label{fig:gui} The look of the graphical interface.}
+\end{figure}
+
+When running with the Graphical user interface, the user is presented with a screen divided into three sections: the biggest one on the left is dedicated for the display of scheduling information, while the rightmost section is further split into two, for displaying contextual information and for providing the list of available commands.
+
+After the GUI has loaded, the user can issue the following commands:
+\begin{itemize}
+\item \textit{A}: Activate the task set.
+\item \textit{S}: Stop the task set.
+\item \textit{Space}: Behaves as either \textit{A} or \textit{S}, according to the situation.
+\item \textit{+}/\textit{-}: Adjust the scale on the time axis.
+\item \textit{P}/\textit{M}: Aliases for \textit{+}/\textit{-}, more comfortable but less intuitive.
+\item \textit{=}: Restore the default zoom level.
+\item $\leftarrow$/$\rightarrow$: Pan the time axis to the left or right. The shift amount depends on the current zoom level, so as to result in a comparable on-screen distance regardless of the zoom level.
+\item \textit{PgUp}/\textit{PgDown}: Pan the time axis 5 times faster than the corresponding arrows.
+\item \textit{0}: Pan the time axis to position 0.
+\item $\uparrow$/$\downarrow$: Select a previous/next task, respectively.
+\item \textit{Q}, \textit{Esc} or \textit{Control-C}: Instruct the program to exit gracefully, terminating the task set if still active.
+\end{itemize}
 
 Note that it is not possible to restart a stopped task set while keeping the same trace. The task set can simply be restarted by quitting and re-running the application.
 
@@ -126,6 +148,14 @@ Note that it is not possible to restart a stopped task set while keeping the sam
 \section{Architecture}\label{sec:arch}
 
 At the program start-up, the taskset file is parsed: for each periodic task a \mono{struct task} is initialized. In the meanwhile, the shared resources (i.e. instances of \mono{struct resource\_set}) required by the task set are initialized, and finally one thread per task is created. After creation, each thread waits on its activation semaphore until the user instructs the activation, which happens synchronously for all the tasks.
+
+\begin{figure}
+  \centering
+  \includegraphics[width=.9\textwidth,trim=0cm 7cm 0cm 3.5cm,clip]{img/tasks_resources_diagram.pdf}
+  \caption{\label{fig:architecture} A representation of the interactions among the spawned threads. Note that, other than the ones here represented, the periodic tasks themselves may have extra dependencies and interactions, according to the provided description file.}
+\end{figure}
+
+Figure~\ref{fig:architecture} represents the spawned threads and their dependencies, excluding the interactions required by the shared resources specified in the given task set file. Also note that while the tasks do synchronize for writing to the shared trace, the reading thread does not require mutual exclusion.
 
 \subsection{Tasks and tracing}\label{sec:tasks}
 In order to track the execution of the tasks in user space, tasks share a global tick counter (the \mono{tick} field in \mono{struct taskset}).
