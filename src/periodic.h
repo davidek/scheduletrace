@@ -25,16 +25,11 @@
 void set_period_ms(struct timespec *at, struct timespec *dl,
         long period, long deadline, const struct timespec *t0, long phase);
 
-void set_period_ns(struct timespec *at, struct timespec *dl,
-        long period, long deadline);
-
 /**
  * Put the thread to sleep until next activation time, then shift both
  * activation time and deadline by one period.
  */
 void wait_for_period_ms(struct timespec *at, struct timespec *dl, long period);
-
-void wait_for_period_ns(struct timespec *at, struct timespec *dl, long period);
 
 /**
  * Whether the given deadline has been missed

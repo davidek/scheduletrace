@@ -23,9 +23,9 @@
  */
 static void get_keycodes(char *scan, char *ascii) {
   int k;
-  k = readkey(); // block until a key is pressed
-  *ascii = k; // get ascii code
-  *scan = k >> 8; // get scan code
+  k = readkey();        /* blocks until a key is pressed */
+  *ascii = k;           /* ascii code in the lowest byte */
+  *scan = k >> 8;       /* scan code in the highest byte */
 }
 
 
@@ -144,6 +144,8 @@ static const char help_lines[][HELP_LINE_LEN] = {
   " -   Zoom out",
   " 0   Go to position 0",
   " =   Default zoom",
+  " UP  Select prev task",
+  " DOWN  Select next task",
   " ",
   " PGDN  Scroll right 5x",
   " PGUP  Scroll left  5x",

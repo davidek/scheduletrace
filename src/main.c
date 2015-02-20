@@ -333,5 +333,4 @@ int main(int argc, char **argv) {
 
   printf_log(LOG_INFO, "Exiting scheduletrace.\n");
   exit(0);
-  //pthread_exit(NULL);
 }

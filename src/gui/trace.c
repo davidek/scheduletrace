@@ -37,7 +37,7 @@
 
 
 static const PALETTE PLOT_PALETTE = {
-  {0xff, 0xff, 0x33},
+  {0xff, 0xff, 0x33},   /* R0 - no resource */
   {0xff, 0x00, 0x66},
   {0xff, 0x00, 0x00},
   {0x00, 0xff, 0xcb},
@@ -187,7 +187,6 @@ int get_resource_color(int r) {
   select_palette(PLOT_PALETTE);
   get_color(r, &ret);
   unselect_palette();
-  //return COL_YELLOW;
   return makecol(ret.r, ret.g, ret.b);
 }
 
@@ -200,7 +199,7 @@ static void disp_evt(struct guictx *ctx, BITMAP *area,
   startpx = time_to_px(ctx, area->w, start_time);
   endpx = time_to_px(ctx, area->w, end_time);
 
-  // void rectfill(BITMAP *bmp, int x1, int y1, int x2, int y2, int color);
+  /* void rectfill(BITMAP *bmp, int x1, int y1, int x2, int y2, int color); */
   rectfill(area,
       startpx, (evt->task+1 + 1) * line_height - GUI_MARGIN - 1,
       endpx, (evt->task+1 + 1) * line_height - GUI_MARGIN - 1 - TRACE_H,

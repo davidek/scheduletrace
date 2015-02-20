@@ -20,8 +20,17 @@
 #define LINE_SPACING 5
 
 
+static const char *mutex_protocol_str(int protocol) {
+  switch (protocol) {
+    case PTHREAD_PRIO_NONE:     return "NONE";
+    case PTHREAD_PRIO_PROTECT:  return "PROTECT";
+    case PTHREAD_PRIO_INHERIT:  return "INHERIT";
+    default:                    return "?UNKNOWN?";
+  }
+}
+
+
 void display_info(struct guictx *ctx, BITMAP *info_area) {
-  //const char *line;
   int i;
   int ypos;
   int lineheight;
@@ -31,10 +40,16 @@ void display_info(struct guictx *ctx, BITMAP *info_area) {
   clear_to_color(info_area, BG_COL);
 
   lineheight = text_height(font) + LINE_SPACING;
-  ypos = GUI_MARGIN + lineheight;  /* empty line */
+  ypos = GUI_MARGIN;
 
   textprintf_ex(info_area, font, GUI_MARGIN, ypos, TEXT_COL, -1,
-      "T%d selected:", task->id);
+      "*** scheduletrace ***");
+  ypos += lineheight;
+  ypos += lineheight;
+
+  /* == Task information == */
+  textprintf_ex(info_area, font, GUI_MARGIN, ypos, TEXT_COL, -1,
+      "T%d:", task->id);
   ypos += lineheight;
 
   textprintf_ex(info_area, font, GUI_MARGIN, ypos, TEXT_COL, -1,
@@ -50,7 +65,8 @@ void display_info(struct guictx *ctx, BITMAP *info_area) {
   ypos += lineheight;
 
   textprintf_ex(info_area, font, GUI_MARGIN, ypos, TEXT_COL, -1,
-      " Sections: %u", task->dmiss);
+      " %u section%s:", task->sections_count,
+      (task->sections_count == 1 ? "" : "s"));
   ypos += lineheight;
 
   for (i = 0; i < task->sections_count; i++) {
@@ -67,4 +83,14 @@ void display_info(struct guictx *ctx, BITMAP *info_area) {
 
     ypos += lineheight;
   }
+  ypos += lineheight;
+
+  /* Other info */
+  textprintf_ex(info_area, font, GUI_MARGIN, ypos, TEXT_COL, -1,
+      "Using \"%s\" mutex protocol",mutex_protocol_str(options.mutex_protocol));
+  ypos += lineheight;
+
+  textprintf_ex(info_area, font, GUI_MARGIN, ypos, TEXT_COL, -1,
+      "Scale: %lf ms/px", 1.0/ctx->scale);
+  ypos += lineheight;
 }

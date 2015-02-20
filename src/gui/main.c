@@ -80,15 +80,7 @@ static void gui_thread_main(struct guictx *ctx) {
     return;
   }
 
-  //clear_to_color(main_area, COL_RED);
-  //clear_to_color(info_area, COL_GREEN);
-  //clear_to_color(help_area, COL_BLUE);
-
   display_help(help_area);
-
-  //sleep(2);
-  //taskset_quit(ctx->ts);
-  //taskset_activate(ctx->ts);
 
   set_period_ms(&at, &dl, GUI_PERIOD, GUI_DEADLINE, NULL, 0);
 
@@ -102,8 +94,6 @@ static void gui_thread_main(struct guictx *ctx) {
     get_user_input(ctx);
     display_info(ctx, info_area);
     display_trace(ctx, main_area);
-    //s = gui_update();
-    //if (s != 0) break;
   }
 
   if (! ctx->ts->activated) {

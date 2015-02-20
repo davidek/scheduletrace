@@ -28,7 +28,7 @@
 /**
  * Copy `ts` to `*td`
  */
-void time_copy(struct timespec *td, const struct timespec *ts) {
+static void time_copy(struct timespec *td, const struct timespec *ts) {
   td->tv_sec = ts->tv_sec;
   td->tv_nsec = ts->tv_nsec;
 }
@@ -36,21 +36,9 @@ void time_copy(struct timespec *td, const struct timespec *ts) {
 /**
  * Add `ms` milliseconds to `*t`
  */
-void time_add_ms(struct timespec *t, long ms) {
+static void time_add_ms(struct timespec *t, long ms) {
   t->tv_sec += ms / 1000;
   t->tv_nsec += (ms % 1000) * 1000000;
-  if (t->tv_nsec > 1000000000) {
-    t->tv_nsec -= 1000000000;
-    t->tv_sec += 1;
-  }
-}
-
-/**
- * Add `ns` nanoseconds to `*t`
- */
-void time_add_ns(struct timespec *t, long ns) {
-  t->tv_sec += ns / 1000000000;
-  t->tv_nsec += (ns % 1000000000);
   if (t->tv_nsec > 1000000000) {
     t->tv_nsec -= 1000000000;
     t->tv_sec += 1;
@@ -72,19 +60,7 @@ void set_period_ms(struct timespec *at, struct timespec *dl,
   time_copy(at, &t);
   time_copy(dl, &t);
 
-  //time_add_ms(at, period);
   time_add_ms(dl, deadline - period);
-}
-
-void set_period_ns(struct timespec *at, struct timespec *dl,
-    long period, long deadline) {
-  struct timespec t;
-
-  clock_gettime(CLOCK_MONOTONIC, &t);
-  time_copy(at, &t);
-  time_copy(dl, &t);
-  time_add_ns(at, period);
-  time_add_ns(dl, deadline);
 }
 
 
@@ -92,12 +68,6 @@ void wait_for_period_ms(struct timespec *at, struct timespec *dl, long period) {
   clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, at, NULL);
   time_add_ms(at, period);
   time_add_ms(dl, period);
-}
-
-void wait_for_period_ns(struct timespec *at, struct timespec *dl, long period) {
-  clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, at, NULL);
-  time_add_ns(at, period);
-  time_add_ns(dl, period);
 }
 
 

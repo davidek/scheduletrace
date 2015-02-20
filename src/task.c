@@ -70,7 +70,7 @@ void tick_pp(struct taskset *ts, int id, int res, int type,
   ts->next_evt->count ++;
   *last_tick = ts->tick;
 
-  assert(ts->next_evt->count > 0);  // TODO: ? sometimes fails at quitting time
+  assert(ts->next_evt->count > 0);
   assert(ts->next_evt->count == 1  ||  ts->next_evt->type == EVT_RUN);
   assert(ts->next_evt->count != 1  ||  ts->next_evt->tick == ts->tick);
   assert(ts->next_evt->task == id);
@@ -93,7 +93,7 @@ static void task_body(struct task_params *task) {
   for (s = 0; s < task->sections_count; s++) {
 
     r = task->sections[s].res;
-    op = task->sections[s].avg; // TODO: gaussian
+    op = task->sections[s].avg;
 
     /* Acquire resource outside the task lock to prevent deadlocks.
      * Note taht this may cause the "acquired" report to be slightly delayed
@@ -309,7 +309,6 @@ void task_create(struct task_params *task) {
   s = pthread_attr_init(&tattr);
   if (s) handle_error(s, "pthread_attr_init", task->name);
 
-  // s = pthread_attr_setdetachstate(&tattr, PTHREAD_CREATE_DETACHED);
   s = pthread_attr_setdetachstate(&tattr, PTHREAD_CREATE_JOINABLE);
   if (s) handle_error_clean(s, "pthread_attr_setdetachstate", task->name);
 
