@@ -36,6 +36,11 @@ void display_info(struct guictx *ctx, BITMAP *info_area) {
   int lineheight;
   struct task_params *task;
 
+  if (! ctx->redraw) {
+    return;
+  }
+  printf_log(LOG_DEBUG, "Re-drawing info pane...\n");
+
   task = ctx->selected;
   clear_to_color(info_area, BG_COL);
 
@@ -92,5 +97,9 @@ void display_info(struct guictx *ctx, BITMAP *info_area) {
 
   textprintf_ex(info_area, font, GUI_MARGIN, ypos, TEXT_COL, -1,
       "Scale: %lf ms/px", 1.0/ctx->scale);
+  ypos += lineheight;
+
+  textprintf_ex(info_area, font, GUI_MARGIN, ypos, TEXT_COL, -1,
+      "CPU load window: %ld", ctx->cpuload_window);
   ypos += lineheight;
 }

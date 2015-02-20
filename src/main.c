@@ -52,6 +52,7 @@ Mandatory arguments to long options are mandatory for short options too.\n\
   -t, --tracefile=FILE  Output trace to FILE (default or \"-\": stdout).\n\
       --no-trace        Disable output of the trace.\n\
       --trace-flush     Flush the output after writing each trace event.\n\
+      --log-flush       Flush the logging output after each write.\n\
       --no-log-sync     Disable synchronization of logging statements \n\
                         (otherways enabled by default).\n\
                         When disabled, the output might turn into a mess.\n\
@@ -99,6 +100,7 @@ void see_help(const char* cmd_name) {
 #define TRACE_FLUSH     260
 #define IDLE_YIELD      261
 #define IDLE_SLEEP      262
+#define LOG_FLUSH       263
 
 /** Populate options struct, parsing the command line arguments. */
 void options_init(int argc, char **argv) {
@@ -112,8 +114,9 @@ void options_init(int argc, char **argv) {
     {"no-gui", no_argument, NULL, 'g' },
     {"taskfile", required_argument, NULL, 'f'},
     {"tracefile", required_argument, NULL, 't'},
-    {"trace-flush", no_argument, NULL, TRACE_FLUSH},
     {"no-trace", no_argument, NULL, NO_TRACE},
+    {"trace-flush", no_argument, NULL, TRACE_FLUSH},
+    {"log-flush", no_argument, NULL, LOG_FLUSH},
     {"no-log-sync", no_argument, NULL, NO_LOG_SYNC},
     {"width", required_argument, NULL, 'W'},
     {"height", required_argument, NULL, 'H'},
@@ -135,6 +138,7 @@ void options_init(int argc, char **argv) {
   options.tracefile_name = "-";
   options.tracefile = stdout;
   options.tracefile_flush = false;
+  options.logfile_flush = false;
   options.gui_w = GUI_DEFAULT_W;
   options.gui_h = GUI_DEFAULT_H;
   options.mutex_protocol = PTHREAD_PRIO_NONE;
@@ -175,6 +179,9 @@ void options_init(int argc, char **argv) {
         break;
       case TRACE_FLUSH:
         options.tracefile_flush = true;
+        break;
+      case LOG_FLUSH:
+        options.logfile_flush = true;
         break;
       case NO_LOG_SYNC:
         options.logfile_sync = false;

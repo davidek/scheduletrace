@@ -115,12 +115,12 @@ static void task_body(struct task_params *task) {
       run_assert(0 == sem_post(&task->ts->task_lock));
     }
 
-    /* Release resource outside the task lock */
-    resource_release(&task->ts->resources, r);
-
     run_assert(0 == sem_wait(&task->ts->task_lock));
     tick_pp(task->ts, task->id, r, EVT_RELEASE, &task->last_tick);
     run_assert(0 == sem_post(&task->ts->task_lock));
+
+    /* Release resource outside the task lock */
+    resource_release(&task->ts->resources, r);
   }
 
   task->jobs ++;

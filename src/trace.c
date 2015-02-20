@@ -65,7 +65,7 @@ void trace_next_add(struct trace *tr) {
   trace_evt_print(&tr->events[tr->len]);
 
   if (tr->len + 1 >= TRACE_SIZE) {
-    printf_log(LOG_WARNING,
+    printf_log(LOG_INFO,
         "Trace is full, will stop tracing. You may want to recompile with a "
         "higher TRACE_SIZE");
     tr->events[tr->len].valid = false;

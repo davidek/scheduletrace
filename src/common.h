@@ -91,6 +91,7 @@ struct options {
   char*         tracefile_name;  
   FILE*         tracefile;
   bool          tracefile_flush;
+  bool          logfile_flush;
 
   int           mutex_protocol; /* Protocol for shared resources' locks */
   bool          with_affinity;  /* Whether to set tasks cpu affinity */

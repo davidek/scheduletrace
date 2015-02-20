@@ -35,9 +35,13 @@ struct guictx {
   pthread_t tid;        /* tid of the gui thread */
   volatile bool exit;   /* set to true to instruct main loop to exit */
   unsigned long dmiss;  /* counts deadline misses in the gui task */
+
   double scale;         /* current zoom level [px/ms] */
   long disp_zero;       /* time of the beginning of the time axis [ms start] */
   struct task_params *selected; /* currently selected task */
+  long cpuload_window;  /* size of the window for computing the cpu load [ms] */
+
+  volatile bool redraw; /* instruct the gui to redraw itself */
 };
 
 

@@ -39,6 +39,8 @@
 \RecustomVerbatimEnvironment{Verbatim}{Verbatim}{fontsize=\footnotesize,baselinestretch=.9}
 \usepackage{listings}
 
+\usepackage[export]{adjustbox}
+
 \usepackage{courier}
 %\newcommand{\mono}[1]{\texttt{\textbf{#1}}}
 \newcommand{\mono}[1]{\texttt{#1}}
@@ -121,8 +123,8 @@ Other interesting command-line parameters are detailed in section~\ref{sec:arch}
 
 \begin{figure}
   \centering
-  \includegraphics[width=.85\textwidth]{img/gui.png}
-  \caption{\label{fig:gui} The look of the graphical interface.}
+  \includegraphics[width=.85\textwidth,frame]{img/gui.png}
+  \caption{\label{fig:gui} The graphical user interface during a sample run.}
 \end{figure}
 
 When running with the Graphical user interface, the user is presented with a screen divided into three sections: the biggest one on the left is dedicated for the display of scheduling information, while the rightmost section is further split into two, for displaying contextual information and for providing the list of available commands.
@@ -140,6 +142,7 @@ After the GUI has loaded, the user can issue the following commands:
 \item \textit{0}: Pan the time axis to position 0.
 \item $\uparrow$/$\downarrow$: Select a previous/next task, respectively.
 \item \textit{Q}, \textit{Esc} or \textit{Control-C}: Instruct the program to exit gracefully, terminating the task set if still active.
+\item \textit{R} or \textit{F5}: Forces the GUI to redraw itself. Although this should never be needed in practice, it has been added for debugging purposes, and might turn useful in case of any GUI-related malfunctioning.
 \end{itemize}
 
 Note that it is not possible to restart a stopped task set while keeping the same trace. The task set can simply be restarted by quitting and re-running the application.
@@ -182,6 +185,13 @@ The user can select the protocol to be used for priority-inversion avoidance thr
 
 Note that when using priority ceiling (\mono{PROTECT}), there is no need to manually specify the ceiling, as it will be automatically inferred from the tasks' definitions. When running with the default output verbosity, the program will report to the console the priority ceiling for each resource.
 
+\subsubsection{CPU load}\label{sec:tasks:cpuload}
+Together with the schedule, the CPI load is plotted on the graphical interface. Note that, because the tasks duration is measured in ``number of operations'', the program does not have the notion of the remaining computation time for the tasks, so it can't compute the \textit{instantaneous load} as defined by Buttazzo and Stankovic\cite{BS-instantaneous-load}.
+
+Instead, the displayed load is computed a posteriori by simply measuring the
+$\frac{\text{non-idle time}}{\text{time interval}}$
+ratio in a given sliding window. For this reason, the load can only be computed after a whole time window has passed since the tasks activation.
+Note that, given this definition, the measured load is always in the $[0,1]$ interval: an overload condition is thus indicated by a load of $1$ lasting for a sustained period.
 
 \subsubsection{CPU Affinity setting}\label{sec:tasks:affinity}
 Note that, even if the global \mono{task\_lock} semaphore should be enough to guarantee that the tasks behave as if they were on a single-processor machine, this results in an enormous number of context switches, which in turn cause the trace space to be filled quickly and the GUI to have problems in displaying it.
@@ -225,6 +235,8 @@ Figure~\ref{fig:inversion} shows an example of running \mono{scheduletrace} with
 \mono{scheduletrace} is a useful tool for graphically displaying what is going on with the scheduling of periodic tasks, which may find applications for didactic purposes or, in the most rosy case, to ease the development of scheduling algorithms.
 
 It has, however a number of limitations and some missing features that may ease its usage. As discussed in section~\ref{sec:runs}, it is quite a pain to produce reproducible behaviours when defining a task set; while this is intrinsic into the scheduling problem in general, sharing with other a critical run could be eased by allowing to load and browse the trace produced by a previous run. Other interesting extensions could be to provide the capability of asynchronously activate the tasks, or to include different types of aperiodic servers and the possibility to specify and activate aperiodic jobs.
+
+As discussed in section~\ref{sec:tasks:cpuload}, the tool currently does not support estimating computation times. In principle, it could be achievable to estimate at run-time the computing times and thus be able to compute and plot the instantaneous load deadlines and remaining computation time into account, while adaptively correcting the speed estimate for the CPU as perceived by the running program. However, this would require adding non-negligible complexity to the program. A simpler approach would be to report the average computation speed to the user and allow them to run the next instance using that estimate.
 
 Further smaller improvements that could increase the usefulness and usability of this tool are detailed in the README file.
 
@@ -291,6 +303,13 @@ Further bits of information about \mono{scheduletrace} can be found bundled with
   Linux Programmer's Manual.
   Linux man-pages.
   2014.
+
+\bibitem{BS-instantaneous-load}
+  G. C. Buttazzo, J. Stankovic.
+  \textit{Adding robustness in dynamic preemptive scheduling}.
+  In D. S. Fussel and M. Malek, editors, Responsive Computer Systems: Steps Toward Fault-Tolerant Real-Time Systems.
+  Kluwer Academic Publishers.
+  1995.
 
 \end{thebibliography}
 

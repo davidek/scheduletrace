@@ -68,15 +68,7 @@ Example:
 
 TODOs
 -----
-* Task/evt info on the right panel: (select task, show info of 1 task at a time)
-* "Also visualize the instantaneous workload as a function of time"
 * Properly detect and show deadline misses
-* Double buffer trace plot
-* More efficient visualization
-  - Avoid redrawing the whole screen in case the user didn't zoom or pan.
-  - Avoid redrawing anything at all if, furthermore, the taskset is not running.
-  - View speed independent of the number of out-of-screen previous events.
-    (perhaps not strictly needed once double buffering is implemented, but now it feels extremely silly and it would be quite easy)
 * Increased plot precision (currently 1ms, for some reasons I don't remember)
 * Differently display "acquire/release" events?
 * Priority-based task lock? Could avoid IDLE to wake up when it is not idle time at all...
@@ -87,3 +79,10 @@ In case you're actually interested in one or more of these (or other) TODOs to b
 Authors
 -------
 Davide Kirchner  davide dot kirchner at yahoo dot it
+
+Licence
+-------
+The core of this program is distrubuted under the Apache Licence, version 2.
+A copy of the licence is shipped whith this code.
+
+The `src/bsearch_left.c` file is distributed under the terms of the GNU General Public License, as published by the Free Software Foundation; version 2.

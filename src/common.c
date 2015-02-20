@@ -57,7 +57,7 @@ void printf_log_nosync(enum loglevel level, int e, const char *fmt, ...) {
         perror("");
     }
 
-    if (level == LOG_ERROR) {
+    if (level == LOG_ERROR || options.logfile_flush) {
       fflush(options.logfile);
     }
   }

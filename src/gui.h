@@ -54,20 +54,25 @@
  */
 void gui_run(struct taskset *ts);
 
+#define makegrey(x) makecol(x, x, x)
 
 #define COL_RED         makecol(255,   0,   0)
 #define COL_GREEN       makecol(  0, 255,   0)
 #define COL_BLUE        makecol(  0,   0, 255)
 #define COL_YELLOW      makecol(255, 255,   0)
 #define COL_ORANGE      makecol(255, 100,   0)
-#define COL_BLACK       makecol(  0,   0,   0)
-#define COL_WHITE       makecol(255, 255, 255)
+#define COL_BLACK       makegrey(  0)
+#define COL_WHITE       makegrey(255)
 
 #define BG_COL          COL_BLACK
-#define SPLITLINE_COL   makecol(120, 120, 120)
-#define HELP_TEXT_COL   makecol( 90,  90,  90)
-#define TEXT_COL        makecol(200, 200, 200)
+#define SPLITLINE_COL   makegrey(120)
+#define HELP_TEXT_COL   makegrey( 90)
+#define TEXT_COL        makegrey(180)
 #define ACTIVATION_COL  COL_WHITE
 #define DEADLINE_COL    COL_RED
+#define CPULOAD_BG_COL  makegrey( 30)
+#define CPULOAD_OK_COL  makecol(  0, 153,  51)
+#define CPULOAD_AVG_COL makecol(230,  92,   0)
+#define CPULOAD_BAD_COL makecol(230,   0,   0)
 
 #endif

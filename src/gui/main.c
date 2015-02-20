@@ -92,8 +92,11 @@ static void gui_thread_main(struct guictx *ctx) {
     }
 
     get_user_input(ctx);
+
     display_info(ctx, info_area);
     display_trace(ctx, main_area);
+
+    ctx->redraw = false;
   }
 
   if (! ctx->ts->activated) {
@@ -214,6 +217,8 @@ void gui_run(struct taskset *ts) {
   ctx.scale = GUI_DEFAULT_ZOOM;
   ctx.disp_zero = 0;
   ctx.selected = &ts->tasks[0];
+  ctx.cpuload_window = ts->tasks[ts->tasks_count - 1].period * 1.5;
+  ctx.redraw = true;
 
   global_ctx = &ctx;
 

@@ -25,27 +25,6 @@
  */
 
 
-/**
- * Copy `ts` to `*td`
- */
-static void time_copy(struct timespec *td, const struct timespec *ts) {
-  td->tv_sec = ts->tv_sec;
-  td->tv_nsec = ts->tv_nsec;
-}
-
-/**
- * Add `ms` milliseconds to `*t`
- */
-static void time_add_ms(struct timespec *t, long ms) {
-  t->tv_sec += ms / 1000;
-  t->tv_nsec += (ms % 1000) * 1000000;
-  if (t->tv_nsec > 1000000000) {
-    t->tv_nsec -= 1000000000;
-    t->tv_sec += 1;
-  }
-}
-
-
 void set_period_ms(struct timespec *at, struct timespec *dl,
     long period, long deadline, const struct timespec *t0, long phase) {
   struct timespec t;
@@ -53,12 +32,12 @@ void set_period_ms(struct timespec *at, struct timespec *dl,
   if (t0 == NULL)
     clock_gettime(CLOCK_MONOTONIC, &t);
   else
-    time_copy(&t, t0);
+    time_cpy(&t, t0);
 
   time_add_ms(&t, phase);
 
-  time_copy(at, &t);
-  time_copy(dl, &t);
+  time_cpy(at, &t);
+  time_cpy(dl, &t);
 
   time_add_ms(dl, deadline - period);
 }

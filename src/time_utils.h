@@ -24,12 +24,19 @@
 #include <time.h>
 
 /**
+ * Copy `ts` to `*td`
+ */
+void time_cpy(struct timespec *td, const struct timespec *ts);
+
+/**
  * Compare timespec: return 0 on equality, 1 if t1 > t2, -1 if t2 < t2
  */
 int time_cmp(const struct timespec *t1, const struct timespec *t2);
 
-/**  */
-long time_to_ms(const struct timespec *t);
+/**
+ * Add `ms` milliseconds to `*t`
+ */
+void time_add_ms(struct timespec *t, long ms);
 
 /** Return time_to_ms(t1 - t2) */
 long time_diff_ms(const struct timespec *t1, const struct timespec *t2);

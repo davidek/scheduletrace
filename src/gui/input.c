@@ -36,6 +36,7 @@ void get_user_input(struct guictx *ctx) {
   if (keyboard_needs_poll()) run_assert(poll_keyboard());
 
   if (keypressed()) {
+    ctx->redraw = true;
     get_keycodes(&scan, &ascii);
 
     /* QUIT */
@@ -120,7 +121,10 @@ void get_user_input(struct guictx *ctx) {
       task_id = (ctx->selected->id + 1) % ctx->ts->tasks_count;
       ctx->selected = &ctx->ts->tasks[task_id];
     }
-    /* NOT A VALID INPUT */
+    /* OTHER */
+    else if (scan == KEY_R || scan == KEY_F5) {
+      printf_log(LOG_INFO, "Refreshing GUI...\n");
+    }
     else {
       printf_log(LOG_INFO, "Got a non-valid key: '%c'\n", ascii);
     }
@@ -150,6 +154,7 @@ static const char help_lines[][HELP_LINE_LEN] = {
   " PGDN  Scroll right 5x",
   " PGUP  Scroll left  5x",
   " SPACE Activate/Stop",
+  " R     Refresh screen",
   "",
 };
 
