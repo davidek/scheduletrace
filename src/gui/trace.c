@@ -437,7 +437,7 @@ static double get_load(struct guictx *ctx, long time_ms) {
 
       assert(evt->valid || i == trace->len); /* not valid implies current */
 
-      if (prev_evt != NULL && prev_evt->task == -1) {
+      if (prev_evt != NULL && evt->valid && prev_evt->task == -1) {
         assert(evt_time >= start_time);
         tot_idle_time +=
           MIN(evt_time, time_ms) - MAX(prev_evt_time, start_time);
