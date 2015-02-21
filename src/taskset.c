@@ -172,3 +172,22 @@ void taskset_join(struct taskset *ts) {
   idle_task_join(&ts->idle);
 }
 
+bool taskset_isactive(struct taskset *ts) {
+  int i;
+  int done_count;
+
+  if (! ts->activated) {
+    return false;
+  }
+  else if (! ts->stopped) {
+    return true;
+  }
+  else {
+    done_count = 0;
+    for (i = 0; i < ts->tasks_count; i++) {
+      done_count += (ts->tasks[i].done ? 1 : 0);
+    }
+    assert(done_count <= ts->tasks_count);
+    return (done_count != ts->tasks_count);
+  }
+}

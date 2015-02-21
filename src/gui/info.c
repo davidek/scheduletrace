@@ -30,6 +30,14 @@ static const char *mutex_protocol_str(int protocol) {
 }
 
 
+static const char *taskset_status_str(struct taskset *ts) {
+  if (! ts->activated)                  return "READY";
+  else if (! ts->stopped)               return "RUNNING";
+  else if (taskset_isactive(ts))        return "QUITTING";
+  else                                  return "STOPPED";
+}
+
+
 void display_info(struct guictx *ctx, BITMAP *info_area) {
   int i;
   int ypos;
@@ -101,5 +109,9 @@ void display_info(struct guictx *ctx, BITMAP *info_area) {
 
   textprintf_ex(info_area, font, GUI_MARGIN, ypos, TEXT_COL, -1,
       "CPU load window: %ld", ctx->cpuload_window);
+  ypos += lineheight;
+
+  textprintf_ex(info_area, font, GUI_MARGIN, ypos, TEXT_COL, -1,
+      "[%s]", taskset_status_str(ctx->ts));
   ypos += lineheight;
 }

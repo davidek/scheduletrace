@@ -341,7 +341,7 @@ static void disp_trace(struct guictx *ctx, BITMAP *area) {
     }
   }
 
-  if (ctx->redraw || (ctx->ts->activated && !ctx->ts->stopped)) {
+  if (ctx->redraw || taskset_isactive(ctx->ts)) {
     prev_evt = NULL;
     for (i = evt_preceding(ctx, ctx->disp_zero); i <= trace->len; i ++) {
       evt = &trace->events[i];
@@ -475,7 +475,7 @@ static void disp_load(struct guictx *ctx, BITMAP *area) {
     disp_load_axes(ctx, area);
   }
 
-  if (ctx->redraw || (ctx->ts->activated && !ctx->ts->stopped)) {
+  if (ctx->redraw || taskset_isactive(ctx->ts)) {
     for (px = 0; px < plot_width; px ++) {
       cpuload = get_load(ctx, px_to_time(ctx, plot_width, px));
       if (! isnan(cpuload)) {

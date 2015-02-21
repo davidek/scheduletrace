@@ -73,4 +73,6 @@ void taskset_quit(struct taskset *ts);
 
 void taskset_join(struct taskset *ts);
 
+bool taskset_isactive(struct taskset *ts);
+
 #endif

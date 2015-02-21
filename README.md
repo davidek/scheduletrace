@@ -86,3 +86,5 @@ The core of this program is distrubuted under the Apache Licence, version 2.
 A copy of the licence is shipped whith this code.
 
 The `src/bsearch_left.c` file is distributed under the terms of the GNU General Public License, as published by the Free Software Foundation; version 2.
+
+The `Makefile`, which wraps the SCons scripts, is released under the terms of the MIT licence (see into the file itself)

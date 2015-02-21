@@ -1,5 +1,5 @@
 
-DEBUG = True
+DEBUG = False
 Export('DEBUG')
 
 SConscript(dirs=['src'])
