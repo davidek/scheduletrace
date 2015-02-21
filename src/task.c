@@ -80,7 +80,7 @@ void tick_pp(struct taskset *ts, int id, int res, int type,
 
 
 /** The task body, which shall be executed at every activation of the task */
-static void task_body(struct task_params *task) {
+static void task_body(struct task *task) {
   int s;                /* section index */
   int r;                /* current resource */
   unsigned long op;     /* operations countdown */
@@ -128,7 +128,7 @@ static void task_body(struct task_params *task) {
 
 
 /* Implememntation of the task */
-static void task_loop(struct task_params* task) {
+static void task_loop(struct task* task) {
   struct timespec at;
   struct timespec dl;
   int s;
@@ -175,13 +175,13 @@ static void task_loop(struct task_params* task) {
 
 /* Wrapper around task_loop with a signature compatible with pthread_create */
 static void *task_function(void* task) {
-  task_loop((struct task_params*) task);
+  task_loop((struct task*) task);
   return NULL;
 }
 
 
 /* documented in header file */
-void task_params_init(struct task_params* task) {
+void task_init(struct task* task) {
   snprintf(task->name, MAX_TASK_NAME_LEN + 1, "task%d", task->id);
 
   task->sections_count = 0;
@@ -202,12 +202,12 @@ void task_params_init(struct task_params* task) {
 
 
 /* documented in header file */
-int task_params_init_str(struct task_params *task, const char *initstr, int id){
+int task_init_str(struct task *task, const char *initstr, int id){
   int n = -1;   /* stores the number of chars read */
   struct task_section *sect;    /* the section currently being parsed */
 
   task->id = id;
-  task_params_init(task);
+  task_init(task);
 
   sscanf(initstr, " T=%u,D=%u,pr=%u,ph=%u,[%n",
       &task->period, &task->deadline, &task->priority, &task->phase, &n);
@@ -243,7 +243,7 @@ int task_params_init_str(struct task_params *task, const char *initstr, int id){
 
 
 /* documented in header file */
-void task_str(char *str,int len, const struct task_params *task, int verbosity){
+void task_str(char *str,int len, const struct task *task, int verbosity){
   int n,        /* number of chars consumed by subsequent calls to sprintf */
       i;        /* loop index for iterating task sections */
 
@@ -296,7 +296,7 @@ static const char *get_sched_policy_string(int policy) {
 
 
 /* documented in header file */
-void task_create(struct task_params *task) {
+void task_create(struct task *task) {
   pthread_attr_t tattr;                 /* thread attributes */
   struct sched_param sched_param;       /* scheduling parameters */
   int policy;                   /* scheduling policy */
@@ -345,13 +345,13 @@ void task_create(struct task_params *task) {
 
 
 /* documented in header file */
-void task_activate(struct task_params *task) {
+void task_activate(struct task *task) {
   sem_post(&task->activation_sem);
 }
 
 
 /* documented in header file */
-void task_join(struct task_params *task) {
+void task_join(struct task *task) {
   int s;
 
   s = pthread_join(task->tid, NULL);

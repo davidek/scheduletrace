@@ -251,7 +251,7 @@ static void disp_evt(struct guictx *ctx, BITMAP *area,
 
 /* Draw the activations and deadlines for the given task */
 static void disp_at_dt(
-    struct guictx *ctx, BITMAP *area, struct task_params *task, int line_height)
+    struct guictx *ctx, BITMAP *area, struct task *task, int line_height)
 {
   long time;
   long time_upper_limit = time_limit(ctx);

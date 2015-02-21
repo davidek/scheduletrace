@@ -18,7 +18,7 @@
  * This module defines data structures for describing tasks and functions
  * to manage and run them.
  *
- * A task is described by a `struct task_params` instance:
+ * A task is described by a `struct task` instance:
  * It can be initialized either by manually setting its deadline, period,
  * priority and sections or by providing an initialization string.
  *
@@ -39,7 +39,7 @@
 #include "common.h"
 #include "resources.h"
 
-struct taskset;  /* can't include taskset before defining task_params */
+struct taskset;  /* can't include taskset before defining `struct task` */
 
 
 #ifndef MAX_TASK_SECTIONS
@@ -80,7 +80,7 @@ struct task_section {
 /**
  * Parameters required to start and run a periodic task
  */
-struct task_params {
+struct task {
   /* To be set by the user before starting the task (or by task_init_str) */
   int id;                       /* id of this task (to match index in taskset)*/
   struct task_section sections[MAX_TASK_SECTIONS];  /* sequence of sections */
@@ -113,40 +113,40 @@ struct task_params {
 
 
 /**
- * Initializes a task_params with defaults.
+ * Initializes a task with defaults.
  * Its behaviour can be tuned at compile time by setting DEFAULT_TASK_*
  * variables: PERIOD, DEADLINE and PRIORITY.
  */
-void task_params_init(struct task_params *task);
+void task_init(struct task *task);
 
 /**
- * Initializes a task_params according to the given description string,
+ * Initializes a task according to the given description string,
  * and with the given id.
  */
-int task_params_init_str(struct task_params *task, const char *initstr, int id);
+int task_init_str(struct task *task, const char *initstr, int id);
 
 /**
  * Create the thread for the task described by the given structure.
  * The scheduling policy to be used can be configured at compile time
  * by setting TASK_SCHED_POLICY, which defaults to SCHED_RR
  */
-void task_create(struct task_params *task);
+void task_create(struct task *task);
 
 /**
  * Activate the task
  */
-void task_activate(struct task_params *task);
+void task_activate(struct task *task);
 
 /**
  * Join the task's thread (to be called _after_ having instructed it to quit)
  */
-void task_join(struct task_params *task);
+void task_join(struct task *task);
 
 /**
  * Write a string representation of the task into *str.
  * 
  * `verbosity` controls the level of details: 1, 2, 3
  */
-void task_str(char *str, int len, const struct task_params *task, int verbosity);
+void task_str(char *str, int len, const struct task *task, int verbosity);
 
 #endif

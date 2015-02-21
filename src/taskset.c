@@ -78,7 +78,7 @@ int taskset_init_file(struct taskset* ts) {
     if (read == 0 || line[0] == '#' || line[0] == '\n')
       continue;
 
-    s = task_params_init_str(&ts->tasks[ts->tasks_count], line, ts->tasks_count);
+    s = task_init_str(&ts->tasks[ts->tasks_count], line, ts->tasks_count);
     if (s) {
       printf_log(LOG_WARNING,
           "Task parsing was unsuccessful, skipping task definition.\n");

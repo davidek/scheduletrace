@@ -43,7 +43,7 @@
 
 struct taskset {
   int tasks_count;
-  struct task_params tasks[MAX_TASKSET_SIZE];
+  struct task tasks[MAX_TASKSET_SIZE];
   struct idle_task idle;
 
   struct resource_set resources;

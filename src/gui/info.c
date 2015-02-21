@@ -34,7 +34,7 @@ void display_info(struct guictx *ctx, BITMAP *info_area) {
   int i;
   int ypos;
   int lineheight;
-  struct task_params *task;
+  struct task *task;
 
   if (! ctx->redraw) {
     return;

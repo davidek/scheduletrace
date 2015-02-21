@@ -38,7 +38,7 @@ struct guictx {
 
   double scale;         /* current zoom level [px/ms] */
   long disp_zero;       /* time of the beginning of the time axis [ms start] */
-  struct task_params *selected; /* currently selected task */
+  struct task *selected;/* currently selected task */
   long cpuload_window;  /* size of the window for computing the cpu load [ms] */
 
   volatile bool redraw; /* instruct the gui to redraw itself */
